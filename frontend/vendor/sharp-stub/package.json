@@ -1,0 +1,7 @@
+{
+  "name": "sharp",
+  "version": "0.0.0-pharmaloc-stub",
+  "description": "Stub volontaire : remplace sharp (binaires libvips sous LGPL-3.0, interdite par le règlement CADEV). L'optimisation d'images Next est désactivée (images.unoptimized).",
+  "main": "index.js",
+  "license": "MIT"
+}

@@ -1,0 +1,17 @@
+import { z } from 'zod';
+import { ROLES } from '../../models/roles';
+import { paginationSchema } from '../../utils/pagination';
+import { registerSchema } from '../auth/auth.validators';
+
+const objectId = z.string().regex(/^[a-f\d]{24}$/i, 'Identifiant invalide');
+
+export const createUserSchema = registerSchema
+  .extend({
+    role: z.enum(ROLES),
+    pharmacyId: objectId.optional(),
+  })
+  .strict();
+
+export const listUsersQuery = paginationSchema.extend({ role: z.enum(ROLES).optional() });
+export const idParams = z.object({ id: objectId });
+export const setStatusSchema = z.object({ isActive: z.boolean() }).strict();

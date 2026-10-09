@@ -1,0 +1,7 @@
+{
+  "name": "lightningcss",
+  "version": "0.0.0-pharmaloc-stub",
+  "description": "Stub volontaire : remplace lightningcss (MPL-2.0, réciprocité de fichier) tiré par vite/vitest. Inutilisé : le backend ne traite aucun CSS.",
+  "main": "index.js",
+  "license": "MIT"
+}
