@@ -12,6 +12,7 @@ import { validate } from '../../middleware/validate';
 import { authenticate, authorize } from '../../middleware/auth';
 import { orderService, assertCanView, loadOrder, orderCode } from './order.service';
 import { addressSchema } from '../addresses/addresses.routes';
+import { deliveryService, forViewer } from '../deliveries/delivery.service';
 
 const createSchema = z.object({
   pharmacyId: objectIdSchema,
@@ -41,7 +42,7 @@ async function present(req: Request, orderId: string) {
     id: String(order._id),
     pharmacy,
     payments,
-    delivery,
+    delivery: forViewer(delivery, req.auth!),
     ...(req.auth!.role === 'PATIENT' && !['cancelled', 'delivered'].includes(order.status) ? { deliveryCode: orderCode(String(order._id)) } : {}),
   };
 }
@@ -105,4 +106,18 @@ ordersRoutes.post('/:id/handover', authorize('PHARMACIST', 'ADMIN'), validate({ 
 ordersRoutes.post('/:id/review', authorize('PATIENT'), validate({ params: idParams, body: reviewSchema }), asyncHandler(async (req: Request, res: Response) => {
   const r = await orderService.review(String(req.params.id), req.auth!.id, req.body.rating, req.body.comment);
   res.status(201).json({ data: r });
+}));
+
+const locationSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  accuracy: z.number().min(0).max(100000).optional(),
+}).strict();
+
+/** Le patient envoie sa position au livreur (réservé au patient propriétaire, livraison en cours uniquement). */
+ordersRoutes.post('/:id/share-location', authorize('PATIENT'), validate({ params: idParams, body: locationSchema }), asyncHandler(async (req: Request, res: Response) => {
+  res.json({ data: await deliveryService.sharePatientLocation(String(req.params.id), req.auth!, req.body.latitude, req.body.longitude, req.body.accuracy) });
+}));
+ordersRoutes.delete('/:id/share-location', authorize('PATIENT'), validate({ params: idParams }), asyncHandler(async (req: Request, res: Response) => {
+  res.json({ data: await deliveryService.stopSharingPatientLocation(String(req.params.id), req.auth!) });
 }));

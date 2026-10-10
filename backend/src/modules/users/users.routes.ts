@@ -3,7 +3,7 @@ import { asyncHandler } from '../../utils/asyncHandler';
 import { validate } from '../../middleware/validate';
 import { authenticate, authorize } from '../../middleware/auth';
 import { usersController } from './users.controller';
-import { createUserSchema, idParams, listUsersQuery, setStatusSchema } from './users.validators';
+import { approvalSchema, createUserSchema, idParams, listUsersQuery, setStatusSchema } from './users.validators';
 
 export const usersRoutes = Router();
 
@@ -17,3 +17,5 @@ usersRoutes.patch(
   validate({ params: idParams, body: setStatusSchema }),
   asyncHandler(usersController.setStatus),
 );
+usersRoutes.get('/requests', asyncHandler(usersController.requests));
+usersRoutes.post('/:id/approval', validate({ params: idParams, body: approvalSchema }), asyncHandler(usersController.approval));

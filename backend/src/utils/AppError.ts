@@ -24,6 +24,12 @@ export class AppError extends Error {
   static conflict(message = 'Conflit', details?: unknown) {
     return new AppError(409, 'CONFLICT', message, details);
   }
+  static accountPending(message = 'Votre compte est en attente de validation par un administrateur') {
+    return new AppError(403, 'ACCOUNT_PENDING', message);
+  }
+  static accountRejected(message = 'Votre demande d’inscription a été refusée') {
+    return new AppError(403, 'ACCOUNT_REJECTED', message);
+  }
   static tooMany(message = 'Trop de tentatives') {
     return new AppError(429, 'TOO_MANY_REQUESTS', message);
   }

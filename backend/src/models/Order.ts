@@ -26,6 +26,7 @@ const orderSchema = new Schema(
     items: { type: [itemSchema], required: true },
     subtotal: { type: Number, required: true },
     deliveryFee: { type: Number, default: 0 },
+    deliveryDistanceKm: { type: Number },
     totalAmount: { type: Number, required: true },
     addressId: { type: Schema.Types.ObjectId, ref: 'Address' },
     addressSnapshot: { type: Schema.Types.Mixed },

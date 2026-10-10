@@ -9,10 +9,16 @@ Rôles : **P** = PATIENT · **PH** = PHARMACIST · **L** = DELIVERY_AGENT · **A
 |---|---|---|---|
 | GET | /health | public | `{status:"ok",service:"pharmaloc"}` |
 | POST | /auth/register | public | Inscription **patient** (le champ `role` est refusé) |
+| POST | /auth/register/pharmacy | public | **Demande d'inscription d'une pharmacie** : compte pharmacien + fiche pharmacie, tous deux **en attente** de validation (n° d'agrément obligatoire) |
+| POST | /auth/register/courier | public | **Demande d'inscription d'un livreur** (téléphone, véhicule) : compte **en attente** |
 | POST | /auth/login, /auth/refresh | public | Jetons accès (15 min) + refresh (7 j) |
 | POST | /auth/logout | connecté | Invalide tous les jetons du compte |
-| GET | /auth/me | connecté | Profil |
-| POST, GET | /users | A | Créer un compte avec rôle / lister |
+| GET | /auth/me | connecté, **même en attente** | Profil et `approvalStatus` (`approved`/`pending`/`rejected`) |
+
+> Un compte `pending` ou `rejected` reçoit **403 `ACCOUNT_PENDING` / `ACCOUNT_REJECTED`** sur toute autre route protégée ; sur les routes publiques il est traité comme anonyme.
+| POST, GET | /users | A | Créer un compte avec rôle (approuvé d'office) / lister (`?approvalStatus=pending`) |
+| GET | /users/requests | A | File des demandes en attente (pharmacies, livreurs) avec détails |
+| POST | /users/:id/approval `{decision:"approve"\|"reject", reason?}` | A | Approuve (valide aussi la pharmacie) ou refuse (motif obligatoire, pharmacie désactivée) |
 | PATCH | /users/:id/status | A | Activer / désactiver |
 
 ## Catalogue, pharmacies, recherche
@@ -23,6 +29,7 @@ Rôles : **P** = PATIENT · **PH** = PHARMACIST · **L** = DELIVERY_AGENT · **A
 | POST, PATCH | /medicines, /medicines/:id | PH, A | Créer / modifier |
 | GET | /pharmacies?lat&lng&radiusKm&city&neighborhood&openNow&delivery | public | Pharmacies validées, triées par distance (`all=true` pour A) |
 | GET | /pharmacies/:id | public | Détail + note moyenne |
+| GET | /pharmacies/:id/delivery-quote?lat&lng | public | **Devis de livraison** : distance, frais, zone (`inZone`), détail du tarif |
 | POST | /pharmacies | A | Créer |
 | PATCH | /pharmacies/:id | A (tout), PH (sa pharmacie, champs limités) | Modifier |
 | PATCH | /pharmacies/:id/validation | A | Valider / suspendre |
@@ -48,12 +55,13 @@ Rôles : **P** = PATIENT · **PH** = PHARMACIST · **L** = DELIVERY_AGENT · **A
 ## Commandes, livraison, paiement
 | Méthode | Route | Accès | Description |
 |---|---|---|---|
-| POST | /orders | P | Crée la commande et **réserve** le stock (409 si insuffisant) |
+| POST | /orders | P | Crée la commande et **réserve** le stock (409 si insuffisant). Livraison : position (latitude/longitude) obligatoire, **frais calculés côté serveur** selon la distance (409 hors zone) |
 | GET | /orders, /orders/:id | selon rôle | Liste filtrée par rôle / détail (le code de livraison n'est visible que du patient) |
 | POST | /orders/:id/cancel | P (avant préparation), PH, A | Libère le stock, rembourse |
 | POST | /orders/:id/accept, reject, prepare, ready | PH, A | Cycle pharmacie (`ready` ouvre la recherche de livreur) |
 | POST | /orders/:id/handover `{code}` | PH, A | Retrait en pharmacie (code du patient) : vente |
 | POST | /orders/:id/review | P | Évaluation après livraison |
+| POST, DELETE | /orders/:id/share-location `{latitude, longitude, accuracy?}` | P (propriétaire) | **Le patient envoie sa position au livreur** assigné (livraison en cours uniquement) / arrête le partage |
 | GET, PATCH | /agents/me | L | Disponibilité, véhicule, position |
 | GET | /agents | A | Supervision des livreurs |
 | GET | /deliveries/available, /deliveries/mine | L | Demandes / mes livraisons |
@@ -72,3 +80,6 @@ Rôles : **P** = PATIENT · **PH** = PHARMACIST · **L** = DELIVERY_AGENT · **A
 `pending → confirmed → preparing → ready → (livraison) assigned → picked_up → in_delivery → delivered` · retrait : `ready → delivered` · `cancelled` possible avant `picked_up`.
 Types de mouvement : `delivery_received, sale, reservation, cancellation, adjustment, return, expiration`.
 Écart avec la spécification : la réception de marchandise est `POST /supplier-deliveries` (et non `/deliveries`), car `/deliveries/:id/pickup|complete` concernent la livraison au patient.
+
+## Tarif de livraison à la distance
+`frais = base + prix_par_km × max(0, distance − km_inclus)`, arrondi au multiple de **50 FCFA** supérieur. Distance à vol d'oiseau (Haversine, arrondie à 0,1 km) entre la pharmacie et l'adresse. Au-delà du rayon de la pharmacie : livraison refusée. Paramètres par pharmacie : `deliveryFee`, `deliveryPerKmFee`, `deliveryIncludedKm`, `deliveryRadiusKm` (modifiables via `PATCH /pharmacies/:id`). Exemple (500 + 150 FCFA/km au-delà de 1 km) : 1 km → 500 · 2 km → 650 · 5,3 km → 1150.

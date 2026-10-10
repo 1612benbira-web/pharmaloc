@@ -17,6 +17,7 @@ import { eventBus } from '../../events/eventBus';
 import { stockService } from '../stock/stock.service';
 import { paymentService, type PaymentMethod } from '../payments/payment.service';
 import { orderCode, verifyOrderCode } from './orderCode';
+import { deliveryQuote } from '../pharmacies/deliveryFee';
 import type { AuthUser } from '../../middleware/auth';
 
 export const MAX_CODE_ATTEMPTS = 5;
@@ -78,20 +79,39 @@ export const orderService = {
     if (input.paymentMethod === 'cash_on_delivery' && input.deliveryType !== 'delivery') throw AppError.validation([{ path: 'paymentMethod', message: 'Paiement à la livraison réservé aux livraisons' }]);
     if (input.paymentMethod === 'cash_on_pickup' && input.deliveryType !== 'pickup') throw AppError.validation([{ path: 'paymentMethod', message: 'Paiement au retrait réservé aux retraits' }]);
 
-    // adresse
+    // adresse + tarif de livraison à la distance (calculé côté serveur, jamais fourni par le client)
     let addressId: Types.ObjectId | undefined;
     let addressSnapshot: unknown;
+    let deliveryFee = 0;
+    let deliveryDistanceKm: number | undefined;
     if (input.deliveryType === 'delivery') {
+      let coords: { latitude?: number | null; longitude?: number | null };
+      let saved: { _id: Types.ObjectId } | undefined;
       if (input.addressId) {
         const a = await Address.findOne({ _id: oid(input.addressId), userId: oid(userId) }).lean();
         if (!a) throw AppError.notFound('Adresse introuvable');
-        addressId = a._id;
+        saved = a;
+        coords = a;
         addressSnapshot = a;
       } else if (input.address) {
-        const a = await Address.create({ ...input.address, userId: oid(userId) });
-        addressId = a._id;
-        addressSnapshot = a.toObject();
+        coords = input.address;
       } else throw AppError.validation([{ path: 'address', message: 'Adresse de livraison requise' }]);
+
+      if (coords.latitude == null || coords.longitude == null) {
+        throw AppError.validation([{ path: 'address', message: 'Position requise pour calculer les frais de livraison : partagez votre position ou choisissez votre quartier' }]);
+      }
+      const q = deliveryQuote(pharmacy, coords.latitude, coords.longitude);
+      if (!q.inZone) {
+        throw AppError.conflict(`Adresse hors de la zone de livraison de cette pharmacie (${q.distanceKm} km, maximum ${q.radiusKm} km)`, { distanceKm: q.distanceKm, radiusKm: q.radiusKm });
+      }
+      deliveryFee = q.fee;
+      deliveryDistanceKm = q.distanceKm;
+      if (saved) addressId = saved._id;
+      else {
+        const created = await Address.create({ ...input.address!, userId: oid(userId) });
+        addressId = created._id;
+        addressSnapshot = created.toObject();
+      }
     }
 
     // fusionner les lignes identiques
@@ -125,7 +145,6 @@ export const orderService = {
     }
 
     const subtotal = lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
-    const deliveryFee = input.deliveryType === 'delivery' ? pharmacy.deliveryFee : 0;
     const orderId = new Types.ObjectId();
     const order = await Order.create({
       _id: orderId,
@@ -135,6 +154,7 @@ export const orderService = {
       items: lines,
       subtotal,
       deliveryFee,
+      deliveryDistanceKm,
       totalAmount: subtotal + deliveryFee,
       addressId,
       addressSnapshot,
@@ -242,7 +262,10 @@ export const orderService = {
     }
     // 3) remboursement + livraison associée
     await paymentService.refundPayment(String(cancelled._id));
-    await Delivery.updateOne({ orderId: cancelled._id, status: { $ne: 'delivered' } }, { $set: { status: 'cancelled' } });
+    await Delivery.updateOne(
+      { orderId: cancelled._id, status: { $ne: 'delivered' } },
+      { $set: { status: 'cancelled' }, $unset: { patientLatitude: 1, patientLongitude: 1, patientLocationAccuracy: 1, patientLocationAt: 1 } },
+    );
     await audit({ action: 'order.cancel', userId: auth.id, entity: 'Order', entityId: String(cancelled._id), metadata: { by, reason } });
     await eventBus.emit('ORDER_CANCELLED', { orderId: String(cancelled._id), by, reason });
     return Order.findById(cancelled._id);

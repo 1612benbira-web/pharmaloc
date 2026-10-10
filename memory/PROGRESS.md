@@ -1,6 +1,6 @@
 # PROGRESS - état réel du projet
 
-Légende : [x] fait ET testé · [~] partiel / non vérifié · [ ] à faire. Dernière mise à jour : 2026-10-08 (session 2).
+Légende : [x] fait ET testé · [~] partiel / non vérifié · [ ] à faire. Dernière mise à jour : 2026-10-10 (session 3).
 **Deadline de soumission : 31 oct 2026 à 17 h 00 (Dakar).** Voir `REGLEMENT_CADEV.md`.
 
 ## Phases 1 à 5 + seed : TERMINÉES côté backend (89 tests verts + 1 test de concurrence réservé à MongoDB réel)
@@ -20,6 +20,13 @@ Légende : [x] fait ET testé · [~] partiel / non vérifié · [ ] à faire. De
 - [x] Docs : README, ARCHITECTURE, API, DATABASE, SECURITY, DEPLOYMENT, DEMO, LICENSES, AI_USAGE ; Dockerfiles + docker-compose (non testés, pas de Docker ici)
 - [ ] Déploiement réel sur Datacloud (aucune info produit : DEPLOYMENT.md à compléter) ; MongoDB réel ; tester `MONGO_REAL=1 npm test` ; seed sur la base de démo en ligne
 - [ ] Soumission : preuve d'achat Datacloud, déclaration composants/licences/IA, déclaration de titularité de chaque membre
+## Session 3 : ajouts (118 tests verts + 1 réservé à MongoDB réel)
+- [x] Inscription par type : patient (immédiat), pharmacie et livreur (en attente de validation admin) ; file « Demandes » dans l'admin ; écran d'attente qui se met à jour seul
+- [x] Frais de livraison à la distance (formule serveur, devis public, hors-zone refusé, réglage par la pharmacie via la page Paramètres)
+- [x] Le patient envoie sa position au livreur (volontaire, masquée à la pharmacie/admin, effacée à la fin)
+- [~] Frontend de ces trois ajouts : compile, **non testé dans un navigateur**
+- [ ] Redéployer (Render/Vercel) puis `seed:reset` pour obtenir les tarifs et les demandes de démonstration
+
 ## Non fait / limites assumées
 Signalements (admin) ; téléversement d'ordonnance ; cookies httpOnly ; 2FA ; paiement réel (DEMO seulement) ; shadcn/ui officiel (composants maison de style équivalent) ; tests frontend automatisés.
 

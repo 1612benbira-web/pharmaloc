@@ -4,25 +4,30 @@ import { Badge, BarChart, Button, Card, Input, Notice, Page, Select, Stat, useFe
 import { api, errMsg, type Obj } from '@/lib/api';
 import { RequireRole } from '@/lib/auth';
 import { ALERT_LABEL, dt, fcfa, STATUS_LABEL } from '@/lib/format';
+import { osmPoint } from '@/lib/location';
 
-const TABS = ['Aperçu', 'Pharmacies', 'Utilisateurs', 'Livreurs', 'Audit'] as const;
+const TABS = ['Aperçu', 'Demandes', 'Pharmacies', 'Utilisateurs', 'Livreurs', 'Audit'] as const;
 const ROLE_LABEL: Record<string, string> = { PATIENT: 'Patients', PHARMACIST: 'Pharmaciens', DELIVERY_AGENT: 'Livreurs', ADMIN: 'Admins' };
 
 function Admin() {
   const [tab, setTab] = useState<(typeof TABS)[number]>('Aperçu');
   const [msg, setMsg] = useState<{ t: 'ok' | 'error'; m: string } | null>(null);
   const dash = useFetch<Obj>('/dashboard/admin', 30000);
+  const requests = useFetch<Obj[]>('/users/requests', 20000);
+  const [reasons, setReasons] = useState<Record<string, string>>({});
   const pharmacies = useFetch<Obj[]>(tab === 'Pharmacies' ? '/pharmacies?all=true&limit=100' : null);
   const users = useFetch<Obj[]>(tab === 'Utilisateurs' ? '/users?limit=100' : null);
   const agents = useFetch<Obj[]>(tab === 'Livreurs' ? '/agents' : null);
   const audit = useFetch<Obj[]>(tab === 'Audit' ? '/audit-logs?limit=50' : null);
   const [nu, setNu] = useState({ firstName: '', lastName: '', email: '', password: '', role: 'PHARMACIST', pharmacyId: '' });
   const run = async (fn: () => Promise<unknown>, ok: string, reload: () => void) => { try { await fn(); setMsg({ t: 'ok', m: ok }); reload(); dash.reload(); } catch (e) { setMsg({ t: 'error', m: errMsg(e) }); } };
+  const decide = (id: string, decision: 'approve' | 'reject') =>
+    run(() => api(`/users/${id}/approval`, { method: 'POST', body: decision === 'reject' ? { decision, reason: reasons[id] } : { decision } }), decision === 'approve' ? 'Demande acceptée.' : 'Demande refusée.', requests.reload);
   const s = dash.data?.stats; const c = dash.data?.charts;
 
   return (
     <Page title="Administration" subtitle="Supervision de la plateforme">
-      <div className="mb-4 flex flex-wrap gap-1 border-b border-brand-100">{TABS.map((t) => <button key={t} onClick={() => { setTab(t); setMsg(null); }} className={`rounded-t-lg px-4 py-2 text-sm font-semibold ${tab === t ? 'bg-brand-600 text-white' : 'text-brand-800 hover:bg-brand-50'}`}>{t}</button>)}</div>
+      <div className="mb-4 flex flex-wrap gap-1 border-b border-brand-100">{TABS.map((t) => <button key={t} onClick={() => { setTab(t); setMsg(null); }} className={`rounded-t-lg px-4 py-2 text-sm font-semibold ${tab === t ? 'bg-brand-600 text-white' : 'text-brand-800 hover:bg-brand-50'}`}>{t}{t === 'Demandes' && !!requests.data?.length && <span className="ml-1 rounded-full bg-red-600 px-1.5 text-xs text-white">{requests.data.length}</span>}</button>)}</div>
       {msg && <div className="mb-3"><Notice tone={msg.t}>{msg.m}</Notice></div>}
 
       {tab === 'Aperçu' && s && (
@@ -42,9 +47,37 @@ function Admin() {
         </>
       )}
 
+      {tab === 'Demandes' && (
+        <div className="space-y-3">
+          {requests.data?.length === 0 && <Card className="text-center text-ink/60">Aucune demande en attente ✅</Card>}
+          {requests.data?.map((r) => (
+            <Card key={r.id}>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div><p className="font-semibold">{r.role === 'PHARMACIST' ? '🏪 Pharmacie' : '🛵 Livreur'} · {r.firstName} {r.lastName}</p><p className="text-sm text-ink/60">{r.email} · {r.phone} · demandé le {dt(r.createdAt)}</p></div><Badge tone="amber">À valider</Badge>
+              </div>
+              {r.pharmacy && (
+                <div className="mt-2 rounded-xl bg-brand-50 p-3 text-sm">
+                  <p className="font-semibold">{r.pharmacy.name}</p>
+                  <p>N° d’agrément : <b>{r.pharmacy.licenseNumber ?? '—'}</b></p>
+                  <p>{r.pharmacy.address}{r.pharmacy.neighborhood && `, ${r.pharmacy.neighborhood}`} · {r.pharmacy.city}</p>
+                  <p>Livraison {r.pharmacy.offersDelivery ? 'oui' : 'non'} · Retrait {r.pharmacy.offersPickup ? 'oui' : 'non'} · {r.pharmacy.is24h ? '24 h/24' : 'horaires définis'}</p>
+                  <a className="underline" target="_blank" rel="noreferrer" href={osmPoint(r.pharmacy.latitude, r.pharmacy.longitude)}>Vérifier la position sur la carte</a>
+                </div>
+              )}
+              {r.courier && <p className="mt-2 rounded-xl bg-brand-50 p-3 text-sm">Véhicule : <b>{r.courier.vehicle ?? '—'}</b></p>}
+              <div className="mt-3 flex flex-wrap items-end gap-2">
+                <Button onClick={() => decide(r.id, 'approve')}>✓ Approuver</Button>
+                <div className="min-w-56 flex-1"><Input label="Motif (obligatoire pour refuser)" value={reasons[r.id] ?? ''} onChange={(e) => setReasons({ ...reasons, [r.id]: e.target.value })} /></div>
+                <Button variant="danger" disabled={(reasons[r.id] ?? '').trim().length < 3} onClick={() => decide(r.id, 'reject')}>✕ Refuser</Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
       {tab === 'Pharmacies' && (
         <div className="space-y-3">{pharmacies.data?.map((p) => (
-          <Card key={p.id} className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold">{p.name}</p><p className="text-sm text-ink/60">{p.address} · {p.neighborhood}</p><p className="text-xs text-ink/40">ID : {p.id}</p></div>
+          <Card key={p.id} className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold">{p.name}</p><p className="text-sm text-ink/60">{p.address} · {p.neighborhood}{p.licenseNumber && ` · agrément ${p.licenseNumber}`}</p><p className="text-xs text-ink/40">ID : {p.id}</p></div>
             <div className="flex items-center gap-2">{p.isValidated ? <Badge tone="green">Validée</Badge> : <Badge tone="amber">En attente</Badge>}
               <Button variant={p.isValidated ? 'outline' : 'primary'} onClick={() => run(() => api(`/pharmacies/${p.id}/validation`, { method: 'PATCH', body: { isValidated: !p.isValidated } }), p.isValidated ? 'Pharmacie suspendue.' : 'Pharmacie validée.', pharmacies.reload)}>{p.isValidated ? 'Suspendre' : 'Valider'}</Button></div></Card>
         ))}</div>

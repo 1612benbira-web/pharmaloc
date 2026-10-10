@@ -2,6 +2,7 @@ import { Medicine, normalize } from '../../models/Medicine';
 import { Pharmacy } from '../../models/Pharmacy';
 import { Stock } from '../../models/Stock';
 import { haversineKm, isOpenNow } from '../../utils/geo';
+import { computeDeliveryFee } from '../pharmacies/deliveryFee';
 
 export interface SearchParams {
   q: string;
@@ -76,6 +77,8 @@ export async function searchOffers(p: SearchParams) {
           price: s.unitPrice,
         },
         distanceKm,
+        deliveryFee: computeDeliveryFee(ph, distanceKm ?? ph.deliveryIncludedKm ?? 0),
+        deliveryFeeEstimated: distanceKm !== undefined,
         deliveryAvailable,
         pickupAvailable,
         isOpen: open,

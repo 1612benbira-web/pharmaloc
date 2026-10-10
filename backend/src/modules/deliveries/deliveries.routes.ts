@@ -9,7 +9,7 @@ import { AppError } from '../../utils/AppError';
 import { idParams, objectIdSchema, oid } from '../../utils/ids';
 import { validate } from '../../middleware/validate';
 import { authenticate, authorize } from '../../middleware/auth';
-import { deliveryService } from './delivery.service';
+import { deliveryService, forViewer } from './delivery.service';
 import { assertCanView } from '../orders/order.service';
 
 const codeSchema = z.object({ code: z.string().regex(/^\d{6}$/, 'Code à 6 chiffres') }).strict();
@@ -30,7 +30,7 @@ deliveriesRoutes.get('/available', authorize('DELIVERY_AGENT'), asyncHandler(asy
 }));
 deliveriesRoutes.get('/mine', authorize('DELIVERY_AGENT'), asyncHandler(async (req: Request, res: Response) => {
   const items = await Delivery.find({ deliveryAgentId: oid(req.auth!.id) }).sort({ createdAt: -1 }).limit(50).lean();
-  const orders = await Order.find({ _id: { $in: items.map((d) => d.orderId) } }).select('items totalAmount paymentMethod paymentStatus addressSnapshot').lean();
+  const orders = await Order.find({ _id: { $in: items.map((d) => d.orderId) } }).select('items totalAmount deliveryFee deliveryDistanceKm paymentMethod paymentStatus addressSnapshot').lean();
   res.json({ data: items.map((d) => ({ ...d, order: orders.find((o) => String(o._id) === String(d.orderId)) })) });
 }));
 
@@ -40,7 +40,7 @@ deliveriesRoutes.get('/:id', validate({ params: idParams }), asyncHandler(async 
   const order = await Order.findById(d.orderId);
   if (!order) throw AppError.notFound('Commande introuvable');
   await assertCanView(order, req.auth!);
-  res.json({ data: d });
+  res.json({ data: forViewer(d, req.auth!) });
 }));
 
 deliveriesRoutes.post('/:id/pickup', authorize('DELIVERY_AGENT'), validate({ params: idParams }), asyncHandler(async (req: Request, res: Response) => {

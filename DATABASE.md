@@ -3,8 +3,8 @@
 ## Modèles
 | Modèle | Rôle | Index notables |
 |---|---|---|
-| User | Comptes (4 rôles), `pharmacyId`, `tokenVersion` | email unique ; role + isActive |
-| Pharmacy | Coordonnées, horaires, livraison/retrait, validation admin | isActive + isValidated ; city + neighborhood |
+| User | Comptes (4 rôles), `pharmacyId`, `tokenVersion`, **`approvalStatus`** (approved/pending/rejected), `rejectionReason` | email unique ; role + isActive ; approvalStatus + createdAt |
+| Pharmacy | Coordonnées, **n° d'agrément**, horaires, livraison/retrait, **tarif à la distance** (`deliveryFee`, `deliveryPerKmFee`, `deliveryIncludedKm`, `deliveryRadiusKm`), validation admin | isActive + isValidated ; city + neighborhood |
 | Medicine | Catalogue (champs de recherche normalisés `nameLower`…) | nameLower, genericNameLower, barcode unique sparse, category |
 | Stock | Agrégat par pharmacie × médicament | **(pharmacyId, medicineId) unique** ; medicineId + available |
 | StockBatch | Lots : numéro, expiration, quantité | (stockId, batchNumber, expirationDate) unique ; stockId + expirationDate |
@@ -15,7 +15,7 @@
 | PurchaseOrder | Suggestion / bon de réapprovisionnement (lignes embarquées) | pharmacyId + status + createdAt |
 | Order | Commande (lignes et prix figés, statut, historique) | userId + createdAt ; pharmacyId + status + createdAt ; status |
 | Payment | Référence, montant, statut, **mode DEMO/LIVE** (aucune donnée bancaire) | orderId |
-| Delivery, DeliveryAssignment, DeliveryAgent | Livraison au patient, historique d'assignation, profil livreur | status + createdAt ; deliveryAgentId + status |
+| Delivery, DeliveryAssignment, DeliveryAgent | Livraison au patient (+ **position partagée par le patient**, effacée à la fin), historique d'assignation, profil livreur | status + createdAt ; deliveryAgentId + status |
 | Address, Review, Notification, AuditLog | Annexes | userId ; orderId unique ; userId + createdAt ; action, createdAt |
 
 Écart assumé avec la spécification : `Stock` ne porte pas un seul lot mais des **StockBatch** (plusieurs lots et expirations par produit, vente FEFO). `DeliveryItem` et `PurchaseOrderItem` sont des sous-documents.

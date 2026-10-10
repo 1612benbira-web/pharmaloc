@@ -6,11 +6,23 @@ import { Pharmacy } from '../../models/Pharmacy';
 import { AppError } from '../../utils/AppError';
 import { oid } from '../../utils/ids';
 import { audit } from '../../services/audit.service';
+import { notify } from '../../services/notification.service';
 import { eventBus } from '../../events/eventBus';
 import { changeStatus, checkCode, consumeOrderStock, loadOrder } from '../orders/order.service';
 import type { AuthUser } from '../../middleware/auth';
 
 export const MAX_ACTIVE_DELIVERIES = 3;
+
+export const PATIENT_LOCATION_FIELDS = ['patientLatitude', 'patientLongitude', 'patientLocationAccuracy', 'patientLocationAt'] as const;
+const UNSET_PATIENT_LOCATION = { patientLatitude: 1, patientLongitude: 1, patientLocationAccuracy: 1, patientLocationAt: 1 };
+
+/** La position partagée n'est visible que du patient et du livreur : jamais de la pharmacie ni de l'admin. */
+export function forViewer<T extends Record<string, unknown>>(d: T | null, auth: AuthUser): T | null {
+  if (!d || auth.role === 'PATIENT' || auth.role === 'DELIVERY_AGENT') return d;
+  const copy: Record<string, unknown> = { ...d };
+  for (const f of PATIENT_LOCATION_FIELDS) delete copy[f];
+  return copy as T;
+}
 
 async function mine(deliveryId: string, auth: AuthUser) {
   const d = await Delivery.findById(deliveryId);
@@ -31,7 +43,7 @@ export const deliveryService = {
     if (!agent?.isAvailable) return [];
     const deliveries = await Delivery.find({ status: 'searching' }).sort({ createdAt: 1 }).limit(50).lean();
     const pharmacies = await Pharmacy.find({ _id: { $in: deliveries.map((d) => d.pharmacyId) } }).select('name address neighborhood').lean();
-    const orders = await Order.find({ _id: { $in: deliveries.map((d) => d.orderId) } }).select('totalAmount deliveryFee items').lean();
+    const orders = await Order.find({ _id: { $in: deliveries.map((d) => d.orderId) } }).select('totalAmount deliveryFee deliveryDistanceKm items').lean();
     return deliveries.map((d) => ({
       ...d,
       pharmacy: pharmacies.find((p) => String(p._id) === String(d.pharmacyId)),
@@ -111,8 +123,34 @@ export const deliveryService = {
     d.deliveredAt = new Date();
     await d.save();
     await DeliveryAssignment.updateOne({ deliveryId: d._id, agentId: oid(auth.id) }, { $set: { status: 'completed', completedAt: new Date() } });
+    await Delivery.updateOne({ _id: d._id }, { $unset: UNSET_PATIENT_LOCATION }); // minimisation : la position est effacée à la livraison
     await audit({ action: 'delivery.complete', userId: auth.id, entity: 'Delivery', entityId: String(d._id) });
     await eventBus.emit('DELIVERY_COMPLETED', { orderId: String(order._id), deliveryId: String(d._id) });
     return d;
+  },
+
+  /** Le patient partage volontairement sa position avec le livreur assigné (consentement à chaque envoi côté interface). */
+  async sharePatientLocation(orderId: string, auth: AuthUser, latitude: number, longitude: number, accuracy?: number) {
+    const order = await loadOrder(orderId);
+    if (String(order.userId) !== auth.id) throw AppError.forbidden('Cette commande ne vous appartient pas');
+    if (order.deliveryType !== 'delivery') throw AppError.conflict('Cette commande est un retrait en pharmacie');
+    const prev = await Delivery.findOneAndUpdate(
+      { orderId: order._id, status: { $in: ['assigned', 'picked_up', 'in_delivery'] } },
+      { $set: { patientLatitude: latitude, patientLongitude: longitude, patientLocationAccuracy: accuracy, patientLocationAt: new Date() } },
+      { new: false },
+    );
+    if (!prev) throw AppError.conflict('Vous pourrez partager votre position dès qu’un livreur aura accepté la livraison');
+    if (!prev.patientLocationAt && prev.deliveryAgentId) {
+      await notify.user(prev.deliveryAgentId, { type: 'delivery.patient_location', title: 'Position du client', message: 'Le client a partagé sa position pour vous guider.', data: { orderId } });
+    }
+    await audit({ action: 'delivery.patient_location_shared', userId: auth.id, entity: 'Delivery', entityId: String(prev._id) });
+    return { shared: true };
+  },
+
+  async stopSharingPatientLocation(orderId: string, auth: AuthUser) {
+    const order = await loadOrder(orderId);
+    if (String(order.userId) !== auth.id) throw AppError.forbidden('Cette commande ne vous appartient pas');
+    await Delivery.updateOne({ orderId: order._id }, { $unset: UNSET_PATIENT_LOCATION });
+    return { shared: false };
   },
 };

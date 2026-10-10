@@ -6,7 +6,10 @@
 | Invalidation de session | `tokenVersion` : déconnexion ou désactivation ⇒ tous les jetons meurent ; le compte est relu en base à chaque requête |
 | Autorisation | `authenticate` + `authorize(rôles)` **côté serveur** sur chaque route ; aucune confiance au frontend |
 | Cloisonnement | Pharmacien limité à sa pharmacie (paramètre `pharmacyId` ignoré) ; patient limité à ses commandes ; livreur limité à ses livraisons |
-| Escalade de privilèges | Inscription publique = patient, schéma strict (champ `role` refusé) ; comptes professionnels créés par un admin |
+| Escalade de privilèges | `/auth/register` = patient uniquement, schémas stricts (`role`, `approvalStatus`, `isValidated` refusés) ; pharmacies et livreurs s'inscrivent via des routes dédiées mais restent **en attente** : 403 sur toutes les routes protégées tant qu'un administrateur n'a pas approuvé |
+| Validation des partenaires | Pharmacie : n° d'agrément + position vérifiable sur carte ; décision admin tracée (audit) et notifiée ; refus = pharmacie désactivée ; décision unique (409 si déjà traitée) |
+| Position du patient | Envoyée **volontairement** (clic), visible **du seul livreur assigné** (masquée à la pharmacie et à l'admin), possible uniquement pendant une livraison en cours, **effacée à la livraison/annulation**, arrêt du partage à tout moment |
+| Frais de livraison | Calculés **côté serveur** à partir de la position ; le client ne peut ni les fournir ni les modifier (champ refusé) |
 | Validation | **Zod** sur body/query/params ; schémas `.strict()` ; opérateurs Mongo injectés refusés (422) ; regex de recherche échappées |
 | Intégrité métier | Prix lus côté serveur ; transitions de statut atomiques ; réservations atomiques ; références fournisseur uniques |
 | Code de livraison | 6 chiffres dérivés par HMAC, jamais exposé à la pharmacie ni au livreur, 5 essais puis blocage (429) |

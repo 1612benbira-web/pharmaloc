@@ -21,6 +21,11 @@ const deliverySchema = new Schema(
     agentLatitude: { type: Number },
     agentLongitude: { type: Number },
     agentLocationAt: { type: Date },
+    // Position partagée VOLONTAIREMENT par le patient pour guider le livreur (supprimée à la fin de la livraison).
+    patientLatitude: { type: Number },
+    patientLongitude: { type: Number },
+    patientLocationAccuracy: { type: Number },
+    patientLocationAt: { type: Date },
     pickedUpAt: { type: Date },
     deliveredAt: { type: Date },
   },

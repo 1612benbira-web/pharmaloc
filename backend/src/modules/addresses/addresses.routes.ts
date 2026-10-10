@@ -15,6 +15,7 @@ export const addressSchema = z.object({
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   instructions: z.string().trim().max(300).optional(),
+  locationSource: z.enum(['gps', 'quartier', 'manual']).optional(),
 }).strict();
 
 export const addressesRoutes = Router();

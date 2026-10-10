@@ -6,7 +6,7 @@ import { useFetch } from './ui';
 
 const NAV: Record<string, [string, string][]> = {
   PATIENT: [['Rechercher', '/recherche'], ['Mes commandes', '/commandes']],
-  PHARMACIST: [['Tableau de bord', '/pharmacien'], ['Stock', '/pharmacien/stock'], ['Nouvelle livraison', '/pharmacien/livraison'], ['Commandes', '/pharmacien/commandes'], ['Réappro', '/pharmacien/reappro'], ['Mouvements', '/pharmacien/mouvements']],
+  PHARMACIST: [['Tableau de bord', '/pharmacien'], ['Stock', '/pharmacien/stock'], ['Nouvelle livraison', '/pharmacien/livraison'], ['Commandes', '/pharmacien/commandes'], ['Réappro', '/pharmacien/reappro'], ['Mouvements', '/pharmacien/mouvements'], ['Paramètres', '/pharmacien/parametres']],
   DELIVERY_AGENT: [['Mes livraisons', '/livreur']],
   ADMIN: [['Administration', '/admin']],
 };
@@ -14,7 +14,7 @@ const NAV: Record<string, [string, string][]> = {
 export function Header() {
   const { user, logout } = useAuth();
   const { count } = useCart();
-  const unread = useFetch<{ unread: number }>(user ? '/notifications/unread-count' : null, 30000);
+  const unread = useFetch<{ unread: number }>(user && (user.approvalStatus ?? 'approved') === 'approved' ? '/notifications/unread-count' : null, 30000);
   const nav = user ? NAV[user.role] ?? [] : [['Rechercher', '/recherche']];
   return (
     <header className="sticky top-0 z-20 border-b border-brand-100 bg-white/95 backdrop-blur">

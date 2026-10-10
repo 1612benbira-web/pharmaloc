@@ -11,6 +11,7 @@ import { haversineKm, isOpenNow } from '../../utils/geo';
 import { validate } from '../../middleware/validate';
 import { authenticate, authorize, optionalAuthenticate } from '../../middleware/auth';
 import { audit } from '../../services/audit.service';
+import { deliveryQuote } from './deliveryFee';
 import { notify } from '../../services/notification.service';
 
 const hours = z.object({
@@ -34,6 +35,8 @@ const base = {
   offersDelivery: z.boolean().optional(),
   offersPickup: z.boolean().optional(),
   deliveryFee: z.number().min(0).max(100000).optional(),
+  deliveryPerKmFee: z.number().min(0).max(10000).optional(),
+  deliveryIncludedKm: z.number().min(0).max(50).optional(),
   deliveryRadiusKm: z.number().min(0).max(100).optional(),
 };
 const createSchema = z.object({ ...base, isValidated: z.boolean().optional() }).strict();
@@ -42,6 +45,7 @@ const ownerPatch = z
   .object({
     phone: base.phone, email: base.email, is24h: base.is24h, openingHours: base.openingHours,
     offersDelivery: base.offersDelivery, offersPickup: base.offersPickup, deliveryFee: base.deliveryFee, deliveryRadiusKm: base.deliveryRadiusKm,
+    deliveryPerKmFee: base.deliveryPerKmFee, deliveryIncludedKm: base.deliveryIncludedKm,
   })
   .partial()
   .strict();
@@ -74,6 +78,16 @@ pharmaciesRoutes.get('/', optionalAuthenticate, validate({ query: listQuery }), 
   items.sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0) || a.name.localeCompare(b.name));
   const total = items.length;
   res.json({ data: items.slice((q.page - 1) * q.limit, q.page * q.limit), meta: pageMeta(total, q) });
+}));
+
+/** Devis de livraison : distance pharmacie -> adresse du patient et frais correspondants (public). */
+const quoteQuery = z.object({ lat: numeric.min(-90).max(90), lng: numeric.min(-180).max(180) });
+pharmaciesRoutes.get('/:id/delivery-quote', validate({ params: idParams, query: quoteQuery }), asyncHandler(async (req: Request, res: Response) => {
+  const p = await Pharmacy.findOne({ _id: req.params.id, isActive: true, isValidated: true }).lean();
+  if (!p) throw AppError.notFound('Pharmacie introuvable');
+  const { lat, lng } = Q<z.infer<typeof quoteQuery>>(req);
+  const quote = deliveryQuote(p, lat, lng);
+  res.json({ data: { ...quote, deliveryAvailable: p.offersDelivery && quote.inZone } });
 }));
 
 pharmaciesRoutes.get('/:id', optionalAuthenticate, validate({ params: idParams }), asyncHandler(async (req: Request, res: Response) => {

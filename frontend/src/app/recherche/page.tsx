@@ -88,7 +88,7 @@ function Search() {
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
                     {o.distanceKm !== undefined && <span>📍 {o.distanceKm} km</span>}
                     <span className="font-semibold text-brand-700">{fcfa(o.stock.price)}</span>
-                    <span>{o.deliveryAvailable ? '🛵 Livraison disponible' : '🛵 Livraison indisponible'}</span>
+                    <span>{o.deliveryAvailable ? `🛵 Livraison : ${o.deliveryFeeEstimated ? '≈ ' : 'dès '}${fcfa(o.deliveryFee)}` : '🛵 Livraison indisponible'}</span>
                     <span>{o.pickupAvailable ? '🏪 Retrait disponible' : '🏪 Retrait indisponible'}</span>
                     <span>{o.isOpen ? '🟢 Ouverte' : '⚪ Fermée'}</span>
                   </div>

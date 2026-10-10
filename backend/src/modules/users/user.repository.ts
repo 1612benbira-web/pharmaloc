@@ -14,6 +14,7 @@ export interface NewUser {
   phone?: string;
   role: Role;
   pharmacyId?: string;
+  approvalStatus?: 'approved' | 'pending' | 'rejected';
 }
 
 export interface UserRepository {
@@ -21,8 +22,9 @@ export interface UserRepository {
   findByEmailWithSecrets(email: string): Promise<UserDoc | null>;
   findByIdWithSecrets(id: string): Promise<UserDoc | null>;
   bumpTokenVersion(id: string): Promise<void>;
-  list(filter: { role?: Role }, skip: number, limit: number): Promise<{ items: UserDoc[]; total: number }>;
+  list(filter: { role?: Role; approvalStatus?: string }, skip: number, limit: number): Promise<{ items: UserDoc[]; total: number }>;
   setActive(id: string, isActive: boolean): Promise<UserDoc | null>;
+  setApproval(id: string, status: 'approved' | 'rejected', reason?: string): Promise<UserDoc | null>;
 }
 
 const secrets = '+passwordHash +tokenVersion';
@@ -49,6 +51,11 @@ export const userRepository: UserRepository = {
     if (!Types.ObjectId.isValid(id)) return null;
     // Désactiver => invalider les jetons existants (updateOne + lecture : compatible tous serveurs Mongo)
     const r = await User.updateOne({ _id: id }, { $set: { isActive }, ...(isActive ? {} : { $inc: { tokenVersion: 1 } }) });
+    return r.matchedCount ? User.findById(id).exec() : null;
+  },
+  setApproval: async (id, status, reason) => {
+    if (!Types.ObjectId.isValid(id)) return null;
+    const r = await User.updateOne({ _id: id }, { $set: { approvalStatus: status, rejectionReason: status === 'rejected' ? reason : undefined } });
     return r.matchedCount ? User.findById(id).exec() : null;
   },
 };

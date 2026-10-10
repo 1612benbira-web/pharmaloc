@@ -1,11 +1,37 @@
 'use client';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Badge, Button, Card, Notice, Page, useFetch } from '@/components/ui';
-import { api, errMsg, type Obj } from '@/lib/api';
+import { api, ApiError, errMsg, type Obj } from '@/lib/api';
+import { ago, getPosition } from '@/lib/location';
 import { RequireRole } from '@/lib/auth';
 import { dt, fcfa, PAY_LABEL, STATUS_LABEL } from '@/lib/format';
 import { statusTone } from '../page';
+
+/** Le patient envoie VOLONTAIREMENT sa position au livreur assigné (consentement à chaque envoi). */
+function ShareLocation({ orderId, sharedAt, onChange }: { orderId: string; sharedAt?: string; onChange: () => void }) {
+  const [auto, setAuto] = useState(false);
+  const [msg, setMsg] = useState('');
+  const send = useCallback(async () => {
+    try {
+      const p = await getPosition();
+      await api(`/orders/${orderId}/share-location`, { method: 'POST', body: { latitude: p.latitude, longitude: p.longitude, ...(p.accuracy !== undefined && { accuracy: p.accuracy }) } });
+      setMsg(''); onChange();
+    } catch (e) { setMsg(e instanceof ApiError ? errMsg(e) : (e as Error).message); setAuto(false); }
+  }, [orderId, onChange]);
+  useEffect(() => { if (!auto) return; const t = setInterval(send, 30000); return () => clearInterval(t); }, [auto, send]);
+  const stop = async () => { setAuto(false); try { await api(`/orders/${orderId}/share-location`, { method: 'DELETE' }); onChange(); } catch (e) { setMsg(errMsg(e)); } };
+  return (
+    <Card className="space-y-2 text-sm">
+      <p className="font-semibold">📍 Aider le livreur à vous trouver</p>
+      <p className="text-xs text-ink/60">En cliquant, votre position actuelle est envoyée <b>uniquement au livreur de cette commande</b>. Elle est effacée à la fin de la livraison, et vous pouvez arrêter à tout moment.</p>
+      {sharedAt && <p className="text-emerald-700">✓ Position envoyée {ago(sharedAt)}</p>}
+      <div className="flex flex-wrap gap-2"><Button onClick={send}>{sharedAt ? 'Mettre à jour ma position' : 'Envoyer ma position au livreur'}</Button>{sharedAt && <Button variant="outline" onClick={stop}>Arrêter le partage</Button>}</div>
+      <label className="flex items-center gap-2 text-xs"><input type="checkbox" className="accent-brand-600" checked={auto} onChange={(e) => { setAuto(e.target.checked); if (e.target.checked) send(); }} />Mettre à jour automatiquement toutes les 30 s (garder cette page ouverte)</label>
+      {msg && <Notice>{msg}</Notice>}
+    </Card>
+  );
+}
 
 function Tracking() {
   const { id } = useParams<{ id: string }>();
@@ -35,7 +61,7 @@ function Tracking() {
           )}
           {o.delivery?.agentLatitude && o.status === 'in_delivery' && <p className="mt-3 text-sm text-ink/60">🛵 Position du livreur : {o.delivery.agentLatitude.toFixed(4)}, {o.delivery.agentLongitude.toFixed(4)} (mise à jour {dt(o.delivery.agentLocationAt)}) · <a className="underline" target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/?mlat=${o.delivery.agentLatitude}&mlon=${o.delivery.agentLongitude}#map=16/${o.delivery.agentLatitude}/${o.delivery.agentLongitude}`}>voir sur la carte</a></p>}
           <div className="mt-4 border-t border-brand-50 pt-3 text-sm">{o.items.map((i: Obj) => <p key={i.stockId + i.name} className="flex justify-between"><span>{i.quantity}× {i.name}</span><span>{fcfa(i.quantity * i.unitPrice)}</span></p>)}
-            <p className="mt-2 flex justify-between text-ink/60"><span>Livraison</span><span>{fcfa(o.deliveryFee)}</span></p><p className="flex justify-between font-bold"><span>Total</span><span>{fcfa(o.totalAmount)}</span></p></div>
+            <p className="mt-2 flex justify-between text-ink/60"><span>Livraison{o.deliveryDistanceKm != null && ` (${o.deliveryDistanceKm} km)`}</span><span>{fcfa(o.deliveryFee)}</span></p><p className="flex justify-between font-bold"><span>Total</span><span>{fcfa(o.totalAmount)}</span></p></div>
         </Card>
         <div className="space-y-4">
           {o.deliveryCode && <Card className="text-center"><p className="text-xs uppercase tracking-wide text-ink/50">{o.deliveryType === 'delivery' ? 'Code de livraison' : 'Code de retrait'}</p><p className="my-2 font-mono text-4xl font-extrabold tracking-widest text-brand-700">{o.deliveryCode}</p><p className="text-xs text-ink/60">À communiquer uniquement à la réception de votre commande.</p></Card>}
@@ -43,6 +69,7 @@ function Tracking() {
             {o.payments?.[0]?.mode === 'DEMO' && <p className="mt-1 text-xs text-amber-700">Mode DEMO : aucun argent réel.</p>}
             {o.prescriptionRequired && <p className="mt-2 text-amber-700">⚠ Une ordonnance sera demandée par la pharmacie.</p>}
             {o.pharmacy && <p className="mt-2 text-ink/60">{o.pharmacy.address}{o.pharmacy.phone && ` · ${o.pharmacy.phone}`}</p>}</Card>
+          {o.deliveryType === 'delivery' && ['assigned', 'picked_up', 'in_delivery'].includes(o.status) && <ShareLocation orderId={id} sharedAt={o.delivery?.patientLocationAt} onChange={reload} />}
           {['pending', 'confirmed'].includes(o.status) && <Button variant="danger" className="w-full" onClick={cancel}>Annuler la commande</Button>}
           {o.status === 'delivered' && <Card><p className="mb-2 text-sm font-semibold">Évaluer le service</p><div className="flex items-center gap-2"><select value={rating} onChange={(e) => setRating(+e.target.value)} className="rounded-lg border border-brand-200 px-2 py-1">{[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{'★'.repeat(n)}</option>)}</select><Button onClick={review}>Envoyer</Button></div></Card>}
         </div>

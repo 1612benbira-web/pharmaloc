@@ -4,6 +4,7 @@ import { Badge, Button, Card, Input, Notice, Page, useFetch } from '@/components
 import { api, errMsg, type Obj } from '@/lib/api';
 import { RequireRole } from '@/lib/auth';
 import { fcfa, PAY_LABEL, STATUS_LABEL } from '@/lib/format';
+import { ago, osmDirections, osmPoint } from '@/lib/location';
 
 const route = (a?: Obj, b?: Obj) => a?.latitude && b?.latitude ? `https://www.openstreetmap.org/directions?from=${a.latitude},${a.longitude}&to=${b.latitude},${b.longitude}` : undefined;
 
@@ -34,6 +35,11 @@ function Agent() {
           <Card key={d._id}>
             <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-semibold">{d.order?.items?.map((i: Obj) => `${i.quantity}× ${i.name}`).join(', ')}</p>
               <p className="text-sm text-ink/60">🏪 Pharmacie : {d.pickupLocation?.address}</p><p className="text-sm text-ink/60">📍 Client : {d.deliveryLocation?.address || d.order?.addressSnapshot?.street}</p>
+              {d.order?.deliveryDistanceKm != null && <p className="text-sm text-ink/60">🛵 {d.order.deliveryDistanceKm} km · frais de livraison {fcfa(d.order.deliveryFee ?? 0)}</p>}
+              {d.patientLatitude != null && (
+                <p className="mt-1 rounded-lg bg-emerald-50 p-2 text-sm text-emerald-900">📍 <b>Position partagée par le client</b> ({ago(d.patientLocationAt)}) · <a className="underline" target="_blank" rel="noreferrer" href={osmPoint(d.patientLatitude, d.patientLongitude)}>voir sur la carte</a>
+                  {' · '}<a className="font-semibold underline" target="_blank" rel="noreferrer" href={osmDirections(d.agentLatitude != null ? { latitude: d.agentLatitude, longitude: d.agentLongitude } : d.pickupLocation, { latitude: d.patientLatitude, longitude: d.patientLongitude })}>itinéraire vers le client</a></p>
+              )}
               <p className="text-sm text-ink/60">{fcfa(d.order?.totalAmount ?? 0)} · {PAY_LABEL[d.order?.paymentMethod]} {d.order?.paymentMethod === 'cash_on_delivery' && <b className="text-amber-700">· à encaisser</b>}</p></div><Badge tone="blue">{STATUS_LABEL[d.status]}</Badge></div>
             <div className="mt-3 flex flex-wrap items-end gap-2">
               {route(d.pickupLocation, d.deliveryLocation) && <a className="rounded-lg border border-brand-200 px-4 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-50" target="_blank" rel="noreferrer" href={route(d.pickupLocation, d.deliveryLocation)}>Itinéraire</a>}

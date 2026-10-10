@@ -20,13 +20,17 @@ const pharmacySchema = new Schema(
     longitude: { type: Number, required: true, min: -180, max: 180 },
     phone: { type: String, trim: true },
     email: { type: String, trim: true, lowercase: true },
+    licenseNumber: { type: String, trim: true }, // n° d'agrément / d'ordre
     isActive: { type: Boolean, default: true },
     isValidated: { type: Boolean, default: false }, // validée par un administrateur
     is24h: { type: Boolean, default: false },
     openingHours: { type: [hoursSchema], default: [] },
     offersDelivery: { type: Boolean, default: true },
     offersPickup: { type: Boolean, default: true },
+    // Frais de livraison = deliveryFee + deliveryPerKmFee x max(0, distance - deliveryIncludedKm), arrondi à 50 FCFA.
     deliveryFee: { type: Number, default: 0, min: 0 },
+    deliveryPerKmFee: { type: Number, default: 0, min: 0 },
+    deliveryIncludedKm: { type: Number, default: 0, min: 0 },
     deliveryRadiusKm: { type: Number, default: 10, min: 0 },
   },
   { timestamps: true },

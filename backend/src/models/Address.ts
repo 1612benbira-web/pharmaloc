@@ -10,6 +10,7 @@ const addressSchema = new Schema(
     latitude: { type: Number, min: -90, max: 90 },
     longitude: { type: Number, min: -180, max: 180 },
     instructions: { type: String, trim: true },
+    locationSource: { type: String, enum: ['gps', 'quartier', 'manual'] },
   },
   { timestamps: true },
 );

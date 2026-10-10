@@ -15,6 +15,8 @@ import { Stock } from '../models/Stock';
 import { StockMovement } from '../models/StockMovement';
 import { Order } from '../models/Order';
 import { Supplier } from '../models/Supplier';
+import { DeliveryAgent } from '../models/DeliveryAgent';
+import { notify } from '../services/notification.service';
 import { stockService } from '../modules/stock/stock.service';
 import { alertService } from '../modules/stock/alert.service';
 import { restockService } from '../modules/stock/restock.service';
@@ -35,11 +37,11 @@ const rint = (a: number, b: number) => a + Math.floor(rnd() * (b - a + 1));
 
 const week = (open: string, close: string) => Array.from({ length: 7 }, (_, day) => ({ day, open, close }));
 const PHARMACIES = [
-  { name: 'Pharmacie Plateau Santé', address: 'Avenue Léopold Sédar Senghor', neighborhood: 'Plateau', latitude: 14.6708, longitude: -17.438, phone: '+221338210001', is24h: true, deliveryFee: 1000 },
-  { name: 'Pharmacie de la Médina', address: 'Rue 11 x 22, Médina', neighborhood: 'Médina', latitude: 14.685, longitude: -17.45, phone: '+221338210002', openingHours: week('08:00', '22:00'), deliveryFee: 1000 },
-  { name: 'Pharmacie des Almadies', address: 'Route des Almadies', neighborhood: 'Almadies', latitude: 14.744, longitude: -17.506, phone: '+221338210003', openingHours: week('08:00', '20:00'), deliveryFee: 1500 },
-  { name: 'Pharmacie Liberté 6', address: 'Cité Liberté 6, Dakar', neighborhood: 'Liberté 6', latitude: 14.7167, longitude: -17.4677, phone: '+221338210004', is24h: true, deliveryFee: 1000 },
-  { name: 'Pharmacie de Pikine', address: 'Boulevard du Centenaire, Pikine', neighborhood: 'Pikine', latitude: 14.7549, longitude: -17.3908, phone: '+221338210005', openingHours: week('08:00', '21:00'), deliveryFee: 1500 },
+  { name: 'Pharmacie Plateau Santé', address: 'Avenue Léopold Sédar Senghor', neighborhood: 'Plateau', latitude: 14.6708, longitude: -17.438, phone: '+221338210001', is24h: true, licenseNumber: 'ONP-SN-0001', deliveryFee: 500, deliveryPerKmFee: 150, deliveryIncludedKm: 1 },
+  { name: 'Pharmacie de la Médina', address: 'Rue 11 x 22, Médina', neighborhood: 'Médina', latitude: 14.685, longitude: -17.45, phone: '+221338210002', openingHours: week('08:00', '22:00'), licenseNumber: 'ONP-SN-0002', deliveryFee: 500, deliveryPerKmFee: 125, deliveryIncludedKm: 1 },
+  { name: 'Pharmacie des Almadies', address: 'Route des Almadies', neighborhood: 'Almadies', latitude: 14.744, longitude: -17.506, phone: '+221338210003', openingHours: week('08:00', '20:00'), licenseNumber: 'ONP-SN-0003', deliveryFee: 700, deliveryPerKmFee: 200, deliveryIncludedKm: 1 },
+  { name: 'Pharmacie Liberté 6', address: 'Cité Liberté 6, Dakar', neighborhood: 'Liberté 6', latitude: 14.7167, longitude: -17.4677, phone: '+221338210004', is24h: true, licenseNumber: 'ONP-SN-0004', deliveryFee: 500, deliveryPerKmFee: 150, deliveryIncludedKm: 1 },
+  { name: 'Pharmacie de Pikine', address: 'Boulevard du Centenaire, Pikine', neighborhood: 'Pikine', latitude: 14.7549, longitude: -17.3908, phone: '+221338210005', openingHours: week('08:00', '21:00'), licenseNumber: 'ONP-SN-0005', deliveryFee: 700, deliveryPerKmFee: 150, deliveryIncludedKm: 2 },
 ];
 
 // nom, dosage, forme, catégorie, ordonnance, prix (FCFA), fabricant
@@ -91,6 +93,18 @@ async function main() {
   const agent2 = await mk('DELIVERY_AGENT', 'livreur2@pharmaloc.sn', 'Cheikh', 'Diop');
   const patient = await mk('PATIENT', 'patient@pharmaloc.sn', 'Awa', 'Diop');
   void admin;
+
+  // Demandes d'inscription EN ATTENTE (pour montrer la file de validation de l'admin)
+  const requestedPharmacy = await Pharmacy.create({
+    name: 'Pharmacie des Parcelles', address: 'Unité 15, Parcelles Assainies', city: 'Dakar', neighborhood: 'Parcelles Assainies',
+    latitude: 14.76, longitude: -17.44, phone: '+221338219999', licenseNumber: 'ONP-SN-2026-777', isValidated: false, isActive: true,
+    deliveryFee: 500, deliveryPerKmFee: 150, deliveryIncludedKm: 1, deliveryRadiusKm: 10, openingHours: week('08:00', '20:00'),
+  });
+  await mk('PHARMACIST', 'nouvelle.pharmacie@pharmaloc.sn', 'Awa', 'Ba', { pharmacyId: requestedPharmacy._id, approvalStatus: 'pending' });
+  const requestedCourier = await mk('DELIVERY_AGENT', 'nouveau.livreur@pharmaloc.sn', 'Modou', 'Sarr', { approvalStatus: 'pending' });
+  await DeliveryAgent.create({ userId: requestedCourier._id, vehicle: 'Moto', isAvailable: false });
+  await notify.admins({ type: 'request.pharmacy', title: 'Nouvelle demande de pharmacie', message: 'Pharmacie des Parcelles demande à rejoindre PharmaLoc (agrément ONP-SN-2026-777).' });
+  await notify.admins({ type: 'request.courier', title: 'Nouvelle demande de livreur', message: 'Modou Sarr (Moto) demande à devenir livreur.' });
 
   const meds = await Medicine.insertMany(MEDICINES.map(([name, dosage, form, category, rx, , manufacturer], i) => ({
     name, dosage, form, category, prescriptionRequired: rx, manufacturer, barcode: `61500000${String(i + 1).padStart(5, '0')}`,
@@ -168,9 +182,9 @@ async function main() {
   await Order.collection.insertMany(history as never[]);
 
   // ---------- commandes réelles à différents statuts (via les vrais services) ----------
-  const patientAuth: AuthUser = { id: String(patient._id), role: 'PATIENT' };
-  const pharmAuth: AuthUser = { id: String(pharmA._id), role: 'PHARMACIST', pharmacyId: String(A._id) };
-  const agentAuth: AuthUser = { id: String(agent._id), role: 'DELIVERY_AGENT' };
+  const patientAuth: AuthUser = { id: String(patient._id), role: 'PATIENT', approvalStatus: 'approved' };
+  const pharmAuth: AuthUser = { id: String(pharmA._id), role: 'PHARMACIST', pharmacyId: String(A._id), approvalStatus: 'approved' };
+  const agentAuth: AuthUser = { id: String(agent._id), role: 'DELIVERY_AGENT', approvalStatus: 'approved' };
   const address = { label: 'Domicile', street: 'Rue 10 x 15, Médina', neighborhood: 'Médina', city: 'Dakar', latitude: 14.686, longitude: -17.447 };
   const place = (type: 'delivery' | 'pickup', items: [typeof ZINC, number][], pay: 'cash_on_delivery' | 'cash_on_pickup' | 'mobile_money') =>
     orderService.create(String(patient._id), {
@@ -220,6 +234,8 @@ async function main() {
     { rôle: 'PHARMACIEN (Médina)', email: 'pharmacien2@pharmaloc.sn' },
     { rôle: 'LIVREUR', email: 'livreur@pharmaloc.sn' },
     { rôle: 'ADMIN', email: 'admin@pharmaloc.sn' },
+    { rôle: 'DEMANDE EN ATTENTE (pharmacie)', email: 'nouvelle.pharmacie@pharmaloc.sn' },
+    { rôle: 'DEMANDE EN ATTENTE (livreur)', email: 'nouveau.livreur@pharmaloc.sn' },
   ]);
 }
 
