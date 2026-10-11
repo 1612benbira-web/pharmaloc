@@ -34,5 +34,8 @@ Tableau de bord : « **Ibuprofène 400 mg risque d'être en rupture dans environ
 2. Pharmacien → **Paramètres** : modifier le tarif (aperçu à 1, 2, 3, 5, 8 km).
 3. Une fois un livreur assigné, le **patient** voit « Aider le livreur à vous trouver » → *Envoyer ma position* (ou mise à jour automatique toutes les 30 s). Le **livreur** voit « position partagée par le client » et un lien d'itinéraire. La pharmacie ne la voit pas ; elle est effacée à la livraison.
 
+## Cartes (Leaflet + OpenStreetMap)
+Bouton **« 🗺 Voir la carte »** (rien n'est chargé avant le clic) : *Recherche* (pharmacies, stock, prix) · *Panier* → « Préciser mon point sur la carte » : cliquer ou **déplacer le repère rouge**, la distance et les frais se mettent à jour · *Suivi de commande* (pharmacie, adresse, livreur, position partagée) · *Livreur* · *Admin → Demandes* (vérifier la pharmacie) · *Inscription pharmacie* (placer la pharmacie). L'attribution « © OpenStreetMap contributors » est visible sur chaque carte.
+
 ## À montrer aussi
 Rupture complète (Salbutamol) · expiration proche (Vitamine C) · annulation (libération automatique du stock) · retrait en pharmacie avec code · admin : validation d'une pharmacie, audit, supervision · notifications 🔔.

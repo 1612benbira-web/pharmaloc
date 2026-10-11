@@ -9,6 +9,7 @@
 | Escalade de privilèges | `/auth/register` = patient uniquement, schémas stricts (`role`, `approvalStatus`, `isValidated` refusés) ; pharmacies et livreurs s'inscrivent via des routes dédiées mais restent **en attente** : 403 sur toutes les routes protégées tant qu'un administrateur n'a pas approuvé |
 | Validation des partenaires | Pharmacie : n° d'agrément + position vérifiable sur carte ; décision admin tracée (audit) et notifiée ; refus = pharmacie désactivée ; décision unique (409 si déjà traitée) |
 | Position du patient | Envoyée **volontairement** (clic), visible **du seul livreur assigné** (masquée à la pharmacie et à l'admin), possible uniquement pendant une livraison en cours, **effacée à la livraison/annulation**, arrêt du partage à tout moment |
+| Cartes | Popups construits en **texte** (jamais en HTML : pas d'injection via un nom de pharmacie) ; tuiles chargées seulement après un clic, avec avertissement (OSM voit l'IP et la zone consultée) ; `Referrer-Policy` explicite |
 | Frais de livraison | Calculés **côté serveur** à partir de la position ; le client ne peut ni les fournir ni les modifier (champ refusé) |
 | Validation | **Zod** sur body/query/params ; schémas `.strict()` ; opérateurs Mongo injectés refusés (422) ; regex de recherche échappées |
 | Intégrité métier | Prix lus côté serveur ; transitions de statut atomiques ; réservations atomiques ; références fournisseur uniques |

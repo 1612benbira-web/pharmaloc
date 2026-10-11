@@ -9,8 +9,9 @@ import { useCart } from '@/lib/cart';
 import { RequireRole } from '@/lib/auth';
 import { getPosition } from '@/lib/location';
 import { QUARTIERS } from '@/lib/quartiers';
+import { LazyMap, MapView, type MapMarker } from '@/components/MapView';
 
-type Loc = { latitude: number; longitude: number; source: 'gps' | 'quartier'; label: string };
+type Loc = { latitude: number; longitude: number; source: 'gps' | 'quartier' | 'manual'; label: string };
 
 function Checkout() {
   const { cart, setQty, clear } = useCart();
@@ -23,6 +24,13 @@ function Checkout() {
   const [geoMsg, setGeoMsg] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [pharm, setPharm] = useState<Obj | null>(null);
+  const [fitKey, setFitKey] = useState('init');
+  const applyLoc = (l: Loc | null) => { setLoc(l); setFitKey(String(Date.now())); }; // cadrage refait seulement sur GPS/quartier, pas à chaque déplacement du repère
+
+  useEffect(() => {
+    if (cart.pharmacyId) api<{ data: Obj }>(`/pharmacies/${cart.pharmacyId}`).then((r) => setPharm(r.data)).catch(() => undefined);
+  }, [cart.pharmacyId]);
 
   // Devis : distance pharmacie -> position du patient, frais correspondants (calcul de référence côté serveur)
   useEffect(() => {
@@ -45,13 +53,18 @@ function Checkout() {
 
   const useGps = async () => {
     setError('');
-    try { const p = await getPosition(); setLoc({ latitude: p.latitude, longitude: p.longitude, source: 'gps', label: `Ma position (≈ ${p.accuracy} m)` }); setGeoMsg(''); }
+    try { const p = await getPosition(); applyLoc({ latitude: p.latitude, longitude: p.longitude, source: 'gps', label: `Ma position (≈ ${p.accuracy} m)` }); setGeoMsg(''); }
     catch (e) { setGeoMsg((e as Error).message + ' Choisissez plutôt votre quartier.'); }
   };
   const useQuartier = (name: string) => {
     const q = QUARTIERS.find((x) => x.name === name);
-    setLoc(q ? { latitude: q.lat, longitude: q.lng, source: 'quartier', label: `Quartier ${q.name} (centre)` } : null);
+    applyLoc(q ? { latitude: q.lat, longitude: q.lng, source: 'quartier', label: `Quartier ${q.name} (centre)` } : null);
   };
+
+  const mapMarkers: MapMarker[] = [
+    ...(pharm ? [{ id: 'pharmacy', lat: pharm.latitude, lng: pharm.longitude, kind: 'pharmacy' as const, title: pharm.name, popup: [pharm.name, pharm.address] }] : []),
+    ...(loc ? [{ id: 'dest', lat: loc.latitude, lng: loc.longitude, kind: 'destination' as const, draggable: true, title: 'Votre point de livraison (déplacez-moi)', popup: [loc.label] }] : []),
+  ];
 
   const submit = async () => {
     setBusy(true); setError('');
@@ -93,6 +106,11 @@ function Checkout() {
                   <p className="mt-1 text-xs text-ink/50">{geoMsg || 'Votre position n’est demandée qu’après votre clic et sert uniquement à calculer la distance et à livrer.'}</p>
                   {loc && <p className="mt-1 text-sm text-brand-800">✓ {loc.label}</p>}
                 </div>
+                <LazyMap label="Préciser mon point sur la carte" hint="Cliquez sur la carte ou déplacez le repère rouge sur votre domicile : la distance et les frais se mettent à jour.">
+                  <MapView markers={mapMarkers} fitKey={fitKey} height={320}
+                    line={pharm && loc ? [[pharm.latitude, pharm.longitude], [loc.latitude, loc.longitude]] : undefined}
+                    onPick={(lat, lng) => setLoc({ latitude: lat, longitude: lng, source: 'manual', label: 'Point choisi sur la carte' })} />
+                </LazyMap>
                 <Input label="2. Adresse précise / repère pour le livreur" value={addr.street} onChange={(e) => setAddr({ ...addr, street: e.target.value })} placeholder="Rue, numéro, porte, point de repère" />
                 <Input label="Instructions (optionnel)" value={addr.instructions} onChange={(e) => setAddr({ ...addr, instructions: e.target.value })} />
                 {quote && (quote.deliveryAvailable

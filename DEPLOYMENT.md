@@ -7,7 +7,7 @@ Node.js 20+ · **MongoDB 6+ réel** (pas une base « compatible » en production
 
 ## Variables d'environnement
 **Backend** (`backend/.env.example`) : `NODE_ENV=production`, `PORT`, `MONGODB_URI`, `JWT_ACCESS_SECRET` et `JWT_REFRESH_SECRET` (**32+ caractères aléatoires, distincts** : `openssl rand -hex 32`), `CORS_ORIGINS` (URL **exacte** du frontend), `BCRYPT_ROUNDS=12`, `RATE_LIMIT_MAX`, `AUTH_RATE_LIMIT_MAX`.
-**Frontend** : `NEXT_PUBLIC_API_URL=https://<api>/api`, lue **au build** : la définir avant `npm run build`.
+**Frontend** : `NEXT_PUBLIC_API_URL=https://<api>/api`, lue **au build** : la définir avant `npm run build`. Optionnelles (cartes) : `NEXT_PUBLIC_TILE_URL`, `NEXT_PUBLIC_TILE_ATTRIBUTION`, `NEXT_PUBLIC_CONTACT_EMAIL` (voir `CARTOGRAPHIE.md`). Si un proxy (Nginx…) est placé devant le frontend, **ne pas lui faire envoyer `Referrer-Policy: no-referrer`** : les tuiles OpenStreetMap seraient refusées.
 
 ## Procédure
 ```bash

@@ -3,3 +3,10 @@
 @tailwind utilities;
 
 body { @apply bg-white text-ink antialiased; }
+
+/* Repères de carte (divIcon Leaflet : aucune image externe) */
+.pl-pin span { display: flex; height: 34px; width: 34px; align-items: center; justify-content: center; border-radius: 9999px; background: #fff; font-size: 18px; line-height: 1; border: 2px solid #17806a; box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+.pl-pin-patient span, .pl-pin-destination span { border-color: #e11d48; }
+.pl-pin-courier span { border-color: #0ea5e9; }
+.pl-pin-me span { border-color: #2563eb; }
+.leaflet-container { font-family: inherit; }

@@ -24,5 +24,5 @@ Navigateur (Next.js) ──HTTPS──▶ API Express /api ──Mongoose──�
 5. **Sécurité côté serveur** : voir `SECURITY.md`.
 
 ## Frontend (`frontend/src`)
-Next.js (App Router), Tailwind, composants maison (style shadcn), session avec rafraîchissement automatique des jetons, panier, graphiques SVG sans dépendance. Pages : accueil, recherche, panier, suivi de commande, notifications, tableau de bord et stock pharmacien, nouvelle livraison, commandes, réapprovisionnement, mouvements, espace livreur, administration.
+Next.js (App Router), Tailwind, composants maison (style shadcn), session avec rafraîchissement automatique des jetons, panier, graphiques SVG sans dépendance, **cartes Leaflet + OpenStreetMap** chargées à la demande (`CARTOGRAPHIE.md`). Pages : accueil, recherche, panier, suivi de commande, notifications, tableau de bord et stock pharmacien, nouvelle livraison, commandes, réapprovisionnement, mouvements, espace livreur, administration.
 Optimisation d'images de Next désactivée (voir `LICENSES.md`).

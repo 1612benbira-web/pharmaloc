@@ -1,6 +1,6 @@
 # LICENSES.md - Licences des dépendances
 
-> Fichier généré le 2026-10-08 par `scan_licenses.js` + `gen_licenses.js`. À régénérer à chaque ajout de dépendance (checklist dans `memory/CONVENTIONS.md`).
+> Fichier généré le 2026-10-11 par `scan_licenses.js` + `gen_licenses.js`. À régénérer à chaque ajout de dépendance (checklist dans `memory/CONVENTIONS.md`).
 
 ## Règle du concours CADEV
 Les licences à réciprocité (**GPL, AGPL, LGPL**) rendent le projet irrecevable. Politique : MIT, Apache-2.0, BSD, ISC (et 0BSD / CC-BY-4.0 pour les données).
@@ -14,7 +14,7 @@ Analyse de **toutes** les dépendances installées (directes + transitives), bac
 3. **caniuse-lite (CC-BY-4.0)** : données de compatibilité navigateurs (build uniquement). Attribution : © Alexis Deveria / Browserslist.
 4. **Serveur MongoDB** : le cahier des charges impose MongoDB. Le serveur MongoDB Community est sous licence **SSPL** ; c'est un **service d'infrastructure**, non lié ni distribué avec le code du projet (le projet n'embarque que le pilote `mongodb`/`mongoose`, Apache-2.0/MIT). À mentionner à l'organisateur si la question se pose.
 5. **Outils de test hors livrable** : un serveur compatible MongoDB (FerretDB, Apache-2.0) a servi à exécuter les tests localement ; il n'est ni dans le dépôt ni dans le déploiement.
-6. **Cartographie** : aucune bibliothèque de carte n'est embarquée ; les itinéraires sont de simples liens vers OpenStreetMap. Si Leaflet (BSD-2-Clause) est ajouté plus tard, respecter les conditions d'usage des tuiles OSM.
+6. **Cartographie** : **Leaflet 1.9.4 (BSD-2-Clause)**, utilisé directement ; le wrapper **react-leaflet est volontairement exclu** (licence Hippocratic-2.1, non permissive). Fond de carte : tuiles OpenStreetMap, données © contributeurs OpenStreetMap (**ODbL**, attribution affichée sur la carte et en pied de page). La politique d'usage des tuiles est respectée : voir `CARTOGRAPHIE.md`.
 7. **Composants UI** : les composants sont écrits dans le projet (style shadcn/ui) sans dépendance supplémentaire.
 
 ## backend - dépendances directes
@@ -44,9 +44,11 @@ Analyse de **toutes** les dépendances installées (directes + transitives), bac
 
 | Paquet | Version | Licence | Type |
 |---|---|---|---|
+| leaflet | 1.9.4 | BSD-2-Clause | production |
 | next | 16.4.0 | MIT | production |
 | react | 19.3.0 | MIT | production |
 | react-dom | 19.3.0 | MIT | production |
+| @types/leaflet | 1.9.22 | MIT | développement |
 | @types/node | 26.6.4 | MIT | développement |
 | @types/react | 19.3.0 | MIT | développement |
 | @types/react-dom | 19.3.0 | MIT | développement |
@@ -59,10 +61,10 @@ Analyse de **toutes** les dépendances installées (directes + transitives), bac
 
 | Licence | Nombre |
 |---|---|
-| MIT | 240 |
+| MIT | 242 |
 | Apache-2.0 | 14 |
 | ISC | 12 |
 | BSD-3-Clause | 5 |
-| BSD-2-Clause | 2 |
+| BSD-2-Clause | 3 |
 | CC-BY-4.0 | 1 |
 | 0BSD | 1 |

@@ -15,7 +15,7 @@ Légende : [x] fait ET testé · [~] partiel / non vérifié · [ ] à faire. De
 - [~] Patient : accueil, recherche + géoloc consentie + filtres, panier/checkout, suivi, notifications, connexion/inscription
 - [~] Pharmacien : dashboard (graphiques SVG), stock + prévision, nouvelle livraison (+ saisie code-barres manuelle), commandes, réappro, mouvements
 - [~] Livreur, Admin (aperçu, pharmacies, utilisateurs, livreurs, audit)
-- [ ] **À FAIRE EN PRIORITÉ** : test manuel complet dans un navigateur (scénarios de DEMO.md), corrections UX ; carte interactive (Leaflet + OSM) - actuellement liens d'itinéraire OSM seulement ; scan caméra du code-barres (saisie manuelle OK) ; accessibilité/mobile à vérifier
+- [ ] **À FAIRE EN PRIORITÉ** : test manuel complet dans un navigateur (scénarios de DEMO.md), corrections UX ; scan caméra du code-barres (saisie manuelle OK) ; accessibilité/mobile à vérifier
 ## Phase 7 : livraison
 - [x] Docs : README, ARCHITECTURE, API, DATABASE, SECURITY, DEPLOYMENT, DEMO, LICENSES, AI_USAGE ; Dockerfiles + docker-compose (non testés, pas de Docker ici)
 - [ ] Déploiement réel sur Datacloud (aucune info produit : DEPLOYMENT.md à compléter) ; MongoDB réel ; tester `MONGO_REAL=1 npm test` ; seed sur la base de démo en ligne
@@ -25,6 +25,8 @@ Légende : [x] fait ET testé · [~] partiel / non vérifié · [ ] à faire. De
 - [x] Frais de livraison à la distance (formule serveur, devis public, hors-zone refusé, réglage par la pharmacie via la page Paramètres)
 - [x] Le patient envoie sa position au livreur (volontaire, masquée à la pharmacie/admin, effacée à la fin)
 - [~] Frontend de ces trois ajouts : compile, **non testé dans un navigateur**
+- [x] Cartes Leaflet + OSM (recherche, panier avec repère déplaçable, suivi, livreur, admin, inscription pharmacie) : conformité à la politique des tuiles documentée (`CARTOGRAPHIE.md`), test jsdom 19/19 ; **rendu visuel non vérifié dans un vrai navigateur**
+- [ ] Renseigner `NEXT_PUBLIC_CONTACT_EMAIL` (contact recommandé par la politique OSM)
 - [ ] Redéployer (Render/Vercel) puis `seed:reset` pour obtenir les tarifs et les demandes de démonstration
 
 ## Non fait / limites assumées

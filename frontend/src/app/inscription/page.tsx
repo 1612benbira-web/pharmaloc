@@ -7,6 +7,7 @@ import { errMsg } from '@/lib/api';
 import { HOME, useAuth } from '@/lib/auth';
 import { getPosition } from '@/lib/location';
 import { QUARTIERS } from '@/lib/quartiers';
+import { LazyMap, MapView } from '@/components/MapView';
 
 type Kind = 'patient' | 'pharmacy' | 'courier';
 const KINDS: { id: Kind; icon: string; title: string; text: string }[] = [
@@ -23,20 +24,21 @@ export default function Register() {
   const [f, setF] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '' });
   const [ph, setPh] = useState({ name: '', licenseNumber: '', address: '', quartier: '', city: 'Dakar', is24h: false, open: '08:00', close: '20:00', offersDelivery: true, offersPickup: true });
   const [vehicle, setVehicle] = useState('Moto');
-  const [pos, setPos] = useState<{ latitude: number; longitude: number; source: 'gps' | 'quartier' } | null>(null);
+  const [pos, setPos] = useState<{ latitude: number; longitude: number; source: 'gps' | 'quartier' | 'map' } | null>(null);
+  const [fitKey, setFitKey] = useState('init');
   const [error, setError] = useState('');
   const [geoMsg, setGeoMsg] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
 
   const locate = async () => {
-    try { const p = await getPosition(); setPos({ latitude: p.latitude, longitude: p.longitude, source: 'gps' }); setGeoMsg(`Position enregistrée (précision ≈ ${p.accuracy} m).`); }
+    try { const p = await getPosition(); setPos({ latitude: p.latitude, longitude: p.longitude, source: 'gps' }); setFitKey(String(Date.now())); setGeoMsg(`Position enregistrée (précision ≈ ${p.accuracy} m).`); }
     catch (e) { setGeoMsg((e as Error).message + ' Choisissez le quartier de la pharmacie.'); }
   };
   const pickQuartier = (name: string) => {
     setPh({ ...ph, quartier: name });
     const q = QUARTIERS.find((x) => x.name === name);
-    if (q && pos?.source !== 'gps') setPos({ latitude: q.lat, longitude: q.lng, source: 'quartier' });
+    if (q && pos?.source !== 'gps' && pos?.source !== 'map') { setPos({ latitude: q.lat, longitude: q.lng, source: 'quartier' }); setFitKey(String(Date.now())); }
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -99,7 +101,10 @@ export default function Register() {
               <div className="rounded-xl bg-brand-50 p-3">
                 <p className="text-sm font-medium">Position de la pharmacie <span className="text-ink/50">(sert à calculer les distances et les frais de livraison)</span></p>
                 <div className="mt-2 flex flex-wrap items-center gap-2"><Button type="button" variant="outline" onClick={locate}>📍 Je suis à la pharmacie : utiliser ma position</Button>
-                  {pos && <span className="text-xs text-brand-800">{pos.source === 'gps' ? '✓ Position GPS' : '✓ Centre du quartier (approximatif)'}</span>}</div>
+                  {pos && <span className="text-xs text-brand-800">{pos.source === 'gps' ? '✓ Position GPS' : pos.source === 'map' ? '✓ Position choisie sur la carte' : '✓ Centre du quartier (approximatif)'}</span>}</div>
+                <div className="mt-2"><LazyMap label="Placer / ajuster sur la carte" hint="Cliquez sur la carte ou déplacez le repère sur l’entrée de votre pharmacie pour une position précise.">
+                  <MapView markers={pos ? [{ id: 'pharmacy', lat: pos.latitude, lng: pos.longitude, kind: 'pharmacy', draggable: true, title: 'Votre pharmacie (déplacez-moi)', popup: [ph.name || 'Votre pharmacie'] }] : []} fitKey={fitKey} height={300}
+                    onPick={(lat, lng) => setPos({ latitude: lat, longitude: lng, source: 'map' })} /></LazyMap></div>
                 <p className="mt-1 text-xs text-ink/50">{geoMsg || 'Votre position n’est utilisée qu’avec votre accord, uniquement pour situer la pharmacie.'}</p>
               </div>
               <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">

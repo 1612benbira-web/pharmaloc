@@ -22,3 +22,6 @@
 **Vérifié** : 118 tests ; serveur réel sur base DEMO (inscription, approbation, devis 1,9 km = 650 FCFA, partage de position visible du livreur et masqué à la pharmacie).
 **Pas vérifié** : interface dans un navigateur ; Docker ; MongoDB réel (concurrence).
 **Prochaine étape** : l'utilisateur copie le zip sur son dépôt, push, redéploie, relance le seed sur Atlas, teste DEMO.md (scénarios 4 et 5) et nous renvoie les bugs.
+
+## Session 3 (suite) - Cartes Leaflet
+**Demande** : ajouter Leaflet en respectant les conditions d'usage des tuiles. **Fait** : voir D-22 et `CARTOGRAPHIE.md`. Politique officielle OSM relue (tiles/ sur operations.osmfoundation.org). `react-leaflet` écarté (Hippocratic-2.1). **Vérifié** : 19 contrôles jsdom, en-têtes HTTP (Referrer-Policy), build. **Non vérifié** : rendu dans un vrai navigateur, glisser-déposer tactile.

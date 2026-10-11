@@ -12,7 +12,7 @@ let md=`# LICENSES.md - Licences des dépendances\n\n> Fichier généré le ${ne
 3. **caniuse-lite (CC-BY-4.0)** : données de compatibilité navigateurs (build uniquement). Attribution : © Alexis Deveria / Browserslist.
 4. **Serveur MongoDB** : le cahier des charges impose MongoDB. Le serveur MongoDB Community est sous licence **SSPL** ; c'est un **service d'infrastructure**, non lié ni distribué avec le code du projet (le projet n'embarque que le pilote \`mongodb\`/\`mongoose\`, Apache-2.0/MIT). À mentionner à l'organisateur si la question se pose.
 5. **Outils de test hors livrable** : un serveur compatible MongoDB (FerretDB, Apache-2.0) a servi à exécuter les tests localement ; il n'est ni dans le dépôt ni dans le déploiement.
-6. **Cartographie** : aucune bibliothèque de carte n'est embarquée ; les itinéraires sont de simples liens vers OpenStreetMap. Si Leaflet (BSD-2-Clause) est ajouté plus tard, respecter les conditions d'usage des tuiles OSM.
+6. **Cartographie** : **Leaflet 1.9.4 (BSD-2-Clause)**, utilisé directement ; le wrapper **react-leaflet est volontairement exclu** (licence Hippocratic-2.1, non permissive). Fond de carte : tuiles OpenStreetMap, données © contributeurs OpenStreetMap (**ODbL**, attribution affichée sur la carte et en pied de page). La politique d'usage des tuiles est respectée : voir \`CARTOGRAPHIE.md\`.
 7. **Composants UI** : les composants sont écrits dans le projet (style shadcn/ui) sans dépendance supplémentaire.
 
 `;

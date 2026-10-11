@@ -5,8 +5,16 @@ import { api, errMsg, type Obj } from '@/lib/api';
 import { RequireRole } from '@/lib/auth';
 import { fcfa, PAY_LABEL, STATUS_LABEL } from '@/lib/format';
 import { ago, osmDirections, osmPoint } from '@/lib/location';
+import { LazyMap, MapView, type MapMarker } from '@/components/MapView';
 
 const route = (a?: Obj, b?: Obj) => a?.latitude && b?.latitude ? `https://www.openstreetmap.org/directions?from=${a.latitude},${a.longitude}&to=${b.latitude},${b.longitude}` : undefined;
+
+const deliveryMarkers = (d: Obj): MapMarker[] => [
+  ...(d.pickupLocation?.latitude != null ? [{ id: 'pickup', lat: d.pickupLocation.latitude, lng: d.pickupLocation.longitude, kind: 'pharmacy' as const, title: 'Pharmacie', popup: ['Pharmacie (retrait)', d.pickupLocation.address ?? ''] }] : []),
+  ...(d.deliveryLocation?.latitude != null ? [{ id: 'dest', lat: d.deliveryLocation.latitude, lng: d.deliveryLocation.longitude, kind: 'destination' as const, title: 'Adresse du client', popup: ['Adresse de livraison', d.deliveryLocation.address ?? ''] }] : []),
+  ...(d.patientLatitude != null ? [{ id: 'patient', lat: d.patientLatitude, lng: d.patientLongitude, kind: 'patient' as const, title: 'Position partagée par le client', popup: ['Position partagée par le client', ago(d.patientLocationAt)] }] : []),
+  ...(d.agentLatitude != null ? [{ id: 'me', lat: d.agentLatitude, lng: d.agentLongitude, kind: 'courier' as const, title: 'Ma position', popup: ['Ma position'] }] : []),
+];
 
 function Agent() {
   const me = useFetch<Obj>('/agents/me', 15000);
@@ -41,6 +49,7 @@ function Agent() {
                   {' · '}<a className="font-semibold underline" target="_blank" rel="noreferrer" href={osmDirections(d.agentLatitude != null ? { latitude: d.agentLatitude, longitude: d.agentLongitude } : d.pickupLocation, { latitude: d.patientLatitude, longitude: d.patientLongitude })}>itinéraire vers le client</a></p>
               )}
               <p className="text-sm text-ink/60">{fcfa(d.order?.totalAmount ?? 0)} · {PAY_LABEL[d.order?.paymentMethod]} {d.order?.paymentMethod === 'cash_on_delivery' && <b className="text-amber-700">· à encaisser</b>}</p></div><Badge tone="blue">{STATUS_LABEL[d.status]}</Badge></div>
+            {deliveryMarkers(d).length > 0 && <div className="mt-3"><LazyMap label="Voir la carte" hint="🏪 pharmacie · 📍 adresse du client · 🏠 position partagée par le client · 🛵 ma position"><MapView markers={deliveryMarkers(d)} fitKey={`${d._id}:${d.status}:${d.patientLocationAt ?? ''}`} height={300} /></LazyMap></div>}
             <div className="mt-3 flex flex-wrap items-end gap-2">
               {route(d.pickupLocation, d.deliveryLocation) && <a className="rounded-lg border border-brand-200 px-4 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-50" target="_blank" rel="noreferrer" href={route(d.pickupLocation, d.deliveryLocation)}>Itinéraire</a>}
               {d.status === 'assigned' && <Button onClick={() => call(() => api(`/deliveries/${d._id}/pickup`, { method: 'POST' }), 'Commande récupérée.')}>J’ai récupéré la commande</Button>}

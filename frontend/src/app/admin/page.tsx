@@ -4,7 +4,7 @@ import { Badge, BarChart, Button, Card, Input, Notice, Page, Select, Stat, useFe
 import { api, errMsg, type Obj } from '@/lib/api';
 import { RequireRole } from '@/lib/auth';
 import { ALERT_LABEL, dt, fcfa, STATUS_LABEL } from '@/lib/format';
-import { osmPoint } from '@/lib/location';
+import { LazyMap, MapView } from '@/components/MapView';
 
 const TABS = ['Aperçu', 'Demandes', 'Pharmacies', 'Utilisateurs', 'Livreurs', 'Audit'] as const;
 const ROLE_LABEL: Record<string, string> = { PATIENT: 'Patients', PHARMACIST: 'Pharmaciens', DELIVERY_AGENT: 'Livreurs', ADMIN: 'Admins' };
@@ -61,7 +61,7 @@ function Admin() {
                   <p>N° d’agrément : <b>{r.pharmacy.licenseNumber ?? '—'}</b></p>
                   <p>{r.pharmacy.address}{r.pharmacy.neighborhood && `, ${r.pharmacy.neighborhood}`} · {r.pharmacy.city}</p>
                   <p>Livraison {r.pharmacy.offersDelivery ? 'oui' : 'non'} · Retrait {r.pharmacy.offersPickup ? 'oui' : 'non'} · {r.pharmacy.is24h ? '24 h/24' : 'horaires définis'}</p>
-                  <a className="underline" target="_blank" rel="noreferrer" href={osmPoint(r.pharmacy.latitude, r.pharmacy.longitude)}>Vérifier la position sur la carte</a>
+                  <div className="mt-2"><LazyMap label="Vérifier la position sur la carte"><MapView markers={[{ id: 'p', lat: r.pharmacy.latitude, lng: r.pharmacy.longitude, kind: 'pharmacy', title: r.pharmacy.name, popup: [r.pharmacy.name, r.pharmacy.address] }]} fitKey={r.id} height={260} /></LazyMap></div>
                 </div>
               )}
               {r.courier && <p className="mt-2 rounded-xl bg-brand-50 p-3 text-sm">Véhicule : <b>{r.courier.vehicle ?? '—'}</b></p>}

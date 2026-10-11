@@ -7,6 +7,7 @@ import { ago, getPosition } from '@/lib/location';
 import { RequireRole } from '@/lib/auth';
 import { dt, fcfa, PAY_LABEL, STATUS_LABEL } from '@/lib/format';
 import { statusTone } from '../page';
+import { LazyMap, MapView, type MapMarker } from '@/components/MapView';
 
 /** Le patient envoie VOLONTAIREMENT sa position au livreur assigné (consentement à chaque envoi). */
 function ShareLocation({ orderId, sharedAt, onChange }: { orderId: string; sharedAt?: string; onChange: () => void }) {
@@ -42,6 +43,13 @@ function Tracking() {
   if (!o) return <Page title="Commande"><p>Chargement…</p></Page>;
   const flow = o.deliveryType === 'delivery' ? ['pending', 'confirmed', 'preparing', 'ready', 'assigned', 'picked_up', 'in_delivery', 'delivered'] : ['pending', 'confirmed', 'preparing', 'ready', 'delivered'];
   const at = flow.indexOf(o.status);
+  const snap = o.addressSnapshot ?? {};
+  const mapMarkers: MapMarker[] = [
+    ...(o.pharmacy?.latitude != null ? [{ id: 'pharmacy', lat: o.pharmacy.latitude, lng: o.pharmacy.longitude, kind: 'pharmacy' as const, title: o.pharmacy.name, popup: [o.pharmacy.name, o.pharmacy.address] }] : []),
+    ...(snap.latitude != null ? [{ id: 'dest', lat: snap.latitude, lng: snap.longitude, kind: 'destination' as const, title: 'Adresse de livraison', popup: ['Adresse de livraison', snap.street ?? ''] }] : []),
+    ...(o.delivery?.agentLatitude != null ? [{ id: 'courier', lat: o.delivery.agentLatitude, lng: o.delivery.agentLongitude, kind: 'courier' as const, title: 'Livreur', popup: ['Votre livreur', `Mis à jour ${dt(o.delivery.agentLocationAt)}`] }] : []),
+    ...(o.delivery?.patientLatitude != null ? [{ id: 'me', lat: o.delivery.patientLatitude, lng: o.delivery.patientLongitude, kind: 'patient' as const, title: 'Ma position partagée', popup: ['Ma position partagée avec le livreur'] }] : []),
+  ];
   const cancel = async () => { try { await api(`/orders/${id}/cancel`, { method: 'POST', body: { reason: 'Annulée par le patient' } }); reload(); } catch (e) { setMsg(errMsg(e)); } };
   const review = async () => { try { await api(`/orders/${id}/review`, { method: 'POST', body: { rating } }); setMsg('Merci pour votre évaluation !'); } catch (e) { setMsg(errMsg(e)); } };
 
@@ -58,6 +66,9 @@ function Tracking() {
                   <span className={i === at ? 'font-bold' : i < at ? '' : 'text-ink/40'}>{STATUS_LABEL[s]}</span></li>
               ))}
             </ol>
+          )}
+          {o.deliveryType === 'delivery' && o.status !== 'cancelled' && mapMarkers.length > 0 && (
+            <div className="mt-4"><LazyMap label="Voir la carte du trajet" hint="🏪 pharmacie · 📍 adresse de livraison · 🛵 livreur (position partagée par lui) · 🏠 ma position partagée"><MapView markers={mapMarkers} fitKey={`${o.status}:${mapMarkers.length}`} height={300} /></LazyMap></div>
           )}
           {o.delivery?.agentLatitude && o.status === 'in_delivery' && <p className="mt-3 text-sm text-ink/60">🛵 Position du livreur : {o.delivery.agentLatitude.toFixed(4)}, {o.delivery.agentLongitude.toFixed(4)} (mise à jour {dt(o.delivery.agentLocationAt)}) · <a className="underline" target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/?mlat=${o.delivery.agentLatitude}&mlon=${o.delivery.agentLongitude}#map=16/${o.delivery.agentLatitude}/${o.delivery.agentLongitude}`}>voir sur la carte</a></p>}
           <div className="mt-4 border-t border-brand-50 pt-3 text-sm">{o.items.map((i: Obj) => <p key={i.stockId + i.name} className="flex justify-between"><span>{i.quantity}× {i.name}</span><span>{fcfa(i.quantity * i.unitPrice)}</span></p>)}

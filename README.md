@@ -17,5 +17,5 @@ Comptes DEMO : voir `DEMO.md` (mot de passe `Demo1234`). Lancement tout-en-un av
 
 ## Contenu
 - `backend/` API Express + TypeScript + Mongoose (89 tests) · `frontend/` Next.js + Tailwind (patient, pharmacien, livreur, admin)
-- Documentation : `ARCHITECTURE.md` · `API.md` · `DATABASE.md` · `SECURITY.md` · `DEPLOYMENT.md` · `DEMO.md` · `LICENSES.md` · `AI_USAGE.md`
+- Documentation : `ARCHITECTURE.md` · `API.md` · `DATABASE.md` · `SECURITY.md` · `DEPLOYMENT.md` · `DEMO.md` · `CARTOGRAPHIE.md` · `LICENSES.md` · `AI_USAGE.md`
 - `memory/` : mémoire de travail du projet (avancement, décisions, conventions, règlement).

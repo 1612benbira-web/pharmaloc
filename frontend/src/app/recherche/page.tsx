@@ -1,10 +1,11 @@
 'use client';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Badge, Button, Card, Input, Notice, Page, Select } from '@/components/ui';
 import { api, errMsg, type Obj } from '@/lib/api';
 import { fcfa } from '@/lib/format';
 import { useCart } from '@/lib/cart';
+import { LazyMap, MapView, type MapMarker } from '@/components/MapView';
 
 function Search() {
   const params = useSearchParams();
@@ -32,6 +33,21 @@ function Search() {
   }, [pos, neighborhood, f]);
 
   useEffect(() => { const t = params.get('q'); if (t) run(t); }, [params, run]);
+
+  const mapMarkers = useMemo<MapMarker[]>(() => {
+    const byPharmacy = new Map<string, MapMarker>();
+    for (const r of results ?? []) {
+      for (const o of r.offers as Obj[]) {
+        const line = `${r.medicine.name} ${r.medicine.dosage ?? ''}`.trim() + ' : ' + (o.stock.status === 'out_of_stock' ? 'rupture' : `stock ${o.stock.available}`) + ` · ${fcfa(o.stock.price)}`;
+        const ex = byPharmacy.get(o.pharmacy.id);
+        if (ex) ex.popup!.push(line);
+        else byPharmacy.set(o.pharmacy.id, { id: `ph-${o.pharmacy.id}`, lat: o.pharmacy.latitude, lng: o.pharmacy.longitude, kind: 'pharmacy', title: o.pharmacy.name, popup: [o.pharmacy.name, o.pharmacy.address, ...(o.distanceKm !== undefined ? [`À ${o.distanceKm} km`] : []), line] });
+      }
+    }
+    const list = [...byPharmacy.values()];
+    if (pos) list.push({ id: 'me', lat: pos.lat, lng: pos.lng, kind: 'me', title: 'Votre position', popup: ['Votre position'] });
+    return list;
+  }, [results, pos]);
 
   // Géolocalisation : uniquement après un clic explicite de l'utilisateur (consentement)
   const locate = () => {
@@ -69,6 +85,9 @@ function Search() {
         </div>
       </Card>
 
+      {mapMarkers.some((m) => m.kind === 'pharmacy') && (
+        <div className="mt-4"><LazyMap label="Voir les pharmacies sur la carte" hint="Touchez un repère pour voir la pharmacie, le stock et le prix."><MapView markers={mapMarkers} fitKey={mapMarkers.map((m) => m.id).join(',')} height={340} /></LazyMap></div>
+      )}
       {error && <div className="mt-4"><Notice>{error}</Notice></div>}
       {added && <div className="mt-4"><Notice tone="ok">{added} ajouté au panier. <a className="font-semibold underline" href="/panier">Voir le panier</a></Notice></div>}
       {results && results.length === 0 && <p className="mt-6 text-center text-ink/60">Aucun médicament trouvé pour « {q} ».</p>}
