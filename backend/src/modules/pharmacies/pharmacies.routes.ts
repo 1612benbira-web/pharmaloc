@@ -7,19 +7,13 @@ import { AppError } from '../../utils/AppError';
 import { Q, boolish, numeric } from '../../utils/http';
 import { idParams } from '../../utils/ids';
 import { pageMeta, paginationSchema } from '../../utils/pagination';
-import { haversineKm, isOpenNow } from '../../utils/geo';
+import { haversineKm, isOpenNow, openingInfo } from '../../utils/geo';
+import { openingHoursSchema } from './hours';
 import { validate } from '../../middleware/validate';
 import { authenticate, authorize, optionalAuthenticate } from '../../middleware/auth';
 import { audit } from '../../services/audit.service';
 import { deliveryQuote } from './deliveryFee';
 import { notify } from '../../services/notification.service';
-
-const hours = z.object({
-  day: z.number().int().min(0).max(6),
-  open: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
-  close: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
-  closed: z.boolean().optional(),
-});
 
 const base = {
   name: z.string().trim().min(2).max(120),
@@ -31,7 +25,7 @@ const base = {
   phone: z.string().trim().max(30).optional(),
   email: z.string().trim().toLowerCase().email().optional(),
   is24h: z.boolean().optional(),
-  openingHours: z.array(hours).max(7).optional(),
+  openingHours: openingHoursSchema.optional(),
   offersDelivery: z.boolean().optional(),
   offersPickup: z.boolean().optional(),
   deliveryFee: z.number().min(0).max(100000).optional(),
@@ -71,6 +65,7 @@ pharmaciesRoutes.get('/', optionalAuthenticate, validate({ query: listQuery }), 
     ...p,
     id: String(p._id),
     isOpen: isOpenNow(p, now),
+    openStatus: openingInfo(p, now),
     distanceKm: q.lat !== undefined && q.lng !== undefined ? haversineKm(q.lat, q.lng, p.latitude, p.longitude) : undefined,
   }));
   if (q.openNow) items = items.filter((p) => p.isOpen);
@@ -96,7 +91,7 @@ pharmaciesRoutes.get('/:id', optionalAuthenticate, validate({ params: idParams }
   if (!p || (!privileged && (!p.isActive || !p.isValidated))) throw AppError.notFound('Pharmacie introuvable');
   const reviews = await Review.find({ pharmacyId: p._id }).select('rating').lean();
   const rating = reviews.length ? Math.round((reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) * 10) / 10 : null;
-  res.json({ data: { ...p, id: String(p._id), isOpen: isOpenNow(p), rating, reviewCount: reviews.length } });
+  res.json({ data: { ...p, id: String(p._id), isOpen: isOpenNow(p), openStatus: openingInfo(p), rating, reviewCount: reviews.length } });
 }));
 
 pharmaciesRoutes.post('/', authenticate, authorize('ADMIN'), validate({ body: createSchema }), asyncHandler(async (req: Request, res: Response) => {

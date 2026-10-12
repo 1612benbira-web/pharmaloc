@@ -18,6 +18,7 @@ import { stockService } from '../stock/stock.service';
 import { paymentService, type PaymentMethod } from '../payments/payment.service';
 import { orderCode, verifyOrderCode } from './orderCode';
 import { deliveryQuote } from '../pharmacies/deliveryFee';
+import { UNSET_PRIVATE } from '../deliveries/privacy';
 import type { AuthUser } from '../../middleware/auth';
 
 export const MAX_CODE_ATTEMPTS = 5;
@@ -264,7 +265,7 @@ export const orderService = {
     await paymentService.refundPayment(String(cancelled._id));
     await Delivery.updateOne(
       { orderId: cancelled._id, status: { $ne: 'delivered' } },
-      { $set: { status: 'cancelled' }, $unset: { patientLatitude: 1, patientLongitude: 1, patientLocationAccuracy: 1, patientLocationAt: 1 } },
+      { $set: { status: 'cancelled' }, $unset: UNSET_PRIVATE },
     );
     await audit({ action: 'order.cancel', userId: auth.id, entity: 'Order', entityId: String(cancelled._id), metadata: { by, reason } });
     await eventBus.emit('ORDER_CANCELLED', { orderId: String(cancelled._id), by, reason });

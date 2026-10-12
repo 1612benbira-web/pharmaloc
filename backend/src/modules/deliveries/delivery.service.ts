@@ -10,19 +10,22 @@ import { notify } from '../../services/notification.service';
 import { eventBus } from '../../events/eventBus';
 import { changeStatus, checkCode, consumeOrderStock, loadOrder } from '../orders/order.service';
 import type { AuthUser } from '../../middleware/auth';
+import { User } from '../../models/User';
+import { PRIVATE_FIELDS, UNSET_PRIVATE } from './privacy';
+import { isValidPhone, normalizePhone, PHONE_MESSAGE } from '../../utils/phone';
 
 export const MAX_ACTIVE_DELIVERIES = 3;
 
-export const PATIENT_LOCATION_FIELDS = ['patientLatitude', 'patientLongitude', 'patientLocationAccuracy', 'patientLocationAt'] as const;
-const UNSET_PATIENT_LOCATION = { patientLatitude: 1, patientLongitude: 1, patientLocationAccuracy: 1, patientLocationAt: 1 };
-
-/** La position partagée n'est visible que du patient et du livreur : jamais de la pharmacie ni de l'admin. */
+/** Masque les données personnelles du patient à tous sauf lui-même et le livreur assigné. */
 export function forViewer<T extends Record<string, unknown>>(d: T | null, auth: AuthUser): T | null {
   if (!d || auth.role === 'PATIENT' || auth.role === 'DELIVERY_AGENT') return d;
   const copy: Record<string, unknown> = { ...d };
-  for (const f of PATIENT_LOCATION_FIELDS) delete copy[f];
+  for (const f of PRIVATE_FIELDS) delete copy[f];
   return copy as T;
 }
+
+export const MAX_PHONE_REQUESTS = 3;
+const ACTIVE = ['assigned', 'picked_up', 'in_delivery'];
 
 async function mine(deliveryId: string, auth: AuthUser) {
   const d = await Delivery.findById(deliveryId);
@@ -123,7 +126,7 @@ export const deliveryService = {
     d.deliveredAt = new Date();
     await d.save();
     await DeliveryAssignment.updateOne({ deliveryId: d._id, agentId: oid(auth.id) }, { $set: { status: 'completed', completedAt: new Date() } });
-    await Delivery.updateOne({ _id: d._id }, { $unset: UNSET_PATIENT_LOCATION }); // minimisation : la position est effacée à la livraison
+    await Delivery.updateOne({ _id: d._id }, { $unset: UNSET_PRIVATE }); // minimisation : position et numéro effacés à la livraison
     await audit({ action: 'delivery.complete', userId: auth.id, entity: 'Delivery', entityId: String(d._id) });
     await eventBus.emit('DELIVERY_COMPLETED', { orderId: String(order._id), deliveryId: String(d._id) });
     return d;
@@ -150,7 +153,74 @@ export const deliveryService = {
   async stopSharingPatientLocation(orderId: string, auth: AuthUser) {
     const order = await loadOrder(orderId);
     if (String(order.userId) !== auth.id) throw AppError.forbidden('Cette commande ne vous appartient pas');
-    await Delivery.updateOne({ orderId: order._id }, { $unset: UNSET_PATIENT_LOCATION });
+    await Delivery.updateOne(
+      { orderId: order._id },
+      { $unset: { patientLatitude: 1, patientLongitude: 1, patientLocationAccuracy: 1, patientLocationAt: 1 } },
+    );
     return { shared: false };
+  },
+
+  /**
+   * Le patient partage SON numéro avec le livreur assigné (numéro du profil ou numéro saisi).
+   * Fonctionne aussi en réponse à une demande du livreur.
+   */
+  async sharePatientPhone(orderId: string, auth: AuthUser, phone?: string) {
+    const order = await loadOrder(orderId);
+    if (String(order.userId) !== auth.id) throw AppError.forbidden('Cette commande ne vous appartient pas');
+    if (order.deliveryType !== 'delivery') throw AppError.conflict('Cette commande est un retrait en pharmacie');
+    const number = normalizePhone(phone ?? (await User.findById(auth.id).select('phone').lean())?.phone ?? '');
+    if (!number) throw AppError.validation([{ path: 'phone', message: 'Saisissez votre numéro : aucun numéro n’est enregistré sur votre profil' }]);
+    if (!isValidPhone(number)) throw AppError.validation([{ path: 'phone', message: PHONE_MESSAGE }]);
+    const prev = await Delivery.findOneAndUpdate(
+      { orderId: order._id, status: { $in: ACTIVE } },
+      { $set: { patientPhone: number, patientPhoneSharedAt: new Date(), phoneRequestStatus: 'shared' } },
+      { new: false },
+    );
+    if (!prev) throw AppError.conflict('Vous pourrez partager votre numéro dès qu’un livreur aura accepté la livraison');
+    if (prev.deliveryAgentId) {
+      await notify.user(prev.deliveryAgentId, { type: 'delivery.patient_phone', title: 'Numéro du client', message: 'Le client a partagé son numéro de téléphone.', data: { orderId } });
+    }
+    await audit({ action: 'delivery.patient_phone_shared', userId: auth.id, entity: 'Delivery', entityId: String(prev._id) }); // le numéro n'est jamais journalisé
+    return { shared: true };
+  },
+
+  async stopSharingPatientPhone(orderId: string, auth: AuthUser) {
+    const order = await loadOrder(orderId);
+    if (String(order.userId) !== auth.id) throw AppError.forbidden('Cette commande ne vous appartient pas');
+    await Delivery.updateOne({ orderId: order._id }, { $unset: { patientPhone: 1, patientPhoneSharedAt: 1, phoneRequestStatus: 1, phoneRequestedAt: 1 } });
+    return { shared: false };
+  },
+
+  /** Le patient refuse de communiquer son numéro : le livreur en est informé. */
+  async declinePhoneRequest(orderId: string, auth: AuthUser) {
+    const order = await loadOrder(orderId);
+    if (String(order.userId) !== auth.id) throw AppError.forbidden('Cette commande ne vous appartient pas');
+    const d = await Delivery.findOneAndUpdate(
+      { orderId: order._id, status: { $in: ACTIVE }, phoneRequestStatus: 'requested' },
+      { $set: { phoneRequestStatus: 'declined' } },
+      { new: true },
+    );
+    if (!d) throw AppError.conflict('Aucune demande de numéro en attente');
+    if (d.deliveryAgentId) await notify.user(d.deliveryAgentId, { type: 'delivery.phone_declined', title: 'Numéro non partagé', message: 'Le client préfère ne pas partager son numéro. Utilisez la position ou contactez la pharmacie.', data: { orderId } });
+    return { declined: true };
+  },
+
+  /** Le livreur demande le numéro du patient (le patient décide de le partager ou non). */
+  async requestPatientPhone(deliveryId: string, auth: AuthUser) {
+    const d = await mine(deliveryId, auth);
+    if (!ACTIVE.includes(d.status)) throw AppError.conflict('La livraison n’est pas en cours');
+    if (d.phoneRequestStatus === 'shared') throw AppError.conflict('Le client a déjà partagé son numéro');
+    if (d.phoneRequestStatus === 'requested') throw AppError.conflict('Demande déjà envoyée : en attente de la réponse du client');
+    if ((d.phoneRequestCount ?? 0) >= MAX_PHONE_REQUESTS) throw AppError.tooMany('Nombre maximal de demandes atteint pour cette livraison');
+    const updated = await Delivery.findOneAndUpdate(
+      { _id: d._id, $or: [{ phoneRequestStatus: { $exists: false } }, { phoneRequestStatus: 'declined' }] },
+      { $set: { phoneRequestStatus: 'requested', phoneRequestedAt: new Date() }, $inc: { phoneRequestCount: 1 } },
+      { new: true },
+    );
+    if (!updated) throw AppError.conflict('Demande déjà envoyée ou numéro déjà partagé');
+    const order = await loadOrder(String(d.orderId));
+    await notify.user(order.userId, { type: 'delivery.phone_requested', title: 'Le livreur demande votre numéro', message: 'Pour vous joindre à l’arrivée, le livreur demande votre numéro. Vous pouvez accepter ou refuser sur la page de votre commande.', data: { orderId: String(order._id) } });
+    await audit({ action: 'delivery.phone_requested', userId: auth.id, entity: 'Delivery', entityId: String(d._id) });
+    return { requested: true };
   },
 };

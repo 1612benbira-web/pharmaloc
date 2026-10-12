@@ -3,7 +3,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Badge, Button, Card, Input, Notice, Page, Select } from '@/components/ui';
 import { api, errMsg, type Obj } from '@/lib/api';
-import { fcfa } from '@/lib/format';
+import { fcfa, openLabel } from '@/lib/format';
 import { useCart } from '@/lib/cart';
 import { LazyMap, MapView, type MapMarker } from '@/components/MapView';
 
@@ -109,7 +109,7 @@ function Search() {
                     <span className="font-semibold text-brand-700">{fcfa(o.stock.price)}</span>
                     <span>{o.deliveryAvailable ? `🛵 Livraison : ${o.deliveryFeeEstimated ? '≈ ' : 'dès '}${fcfa(o.deliveryFee)}` : '🛵 Livraison indisponible'}</span>
                     <span>{o.pickupAvailable ? '🏪 Retrait disponible' : '🏪 Retrait indisponible'}</span>
-                    <span>{o.isOpen ? '🟢 Ouverte' : '⚪ Fermée'}</span>
+                    <span>{openLabel(o.openStatus, o.isOpen)}</span>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button disabled={out} onClick={() => { add({ id: o.pharmacy.id, name: o.pharmacy.name, fee: o.pharmacy.deliveryFee, delivery: o.deliveryAvailable }, { medicineId: r.medicine.id, name: `${r.medicine.name} ${r.medicine.dosage ?? ''}`.trim(), price: o.stock.price, quantity: 1, max: Math.min(50, o.stock.available), prescription: r.medicine.prescriptionRequired }); setAdded(`${r.medicine.name} (${o.pharmacy.name})`); }}>Ajouter au panier</Button>

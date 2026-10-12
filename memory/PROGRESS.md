@@ -26,6 +26,8 @@ Légende : [x] fait ET testé · [~] partiel / non vérifié · [ ] à faire. De
 - [x] Le patient envoie sa position au livreur (volontaire, masquée à la pharmacie/admin, effacée à la fin)
 - [~] Frontend de ces trois ajouts : compile, **non testé dans un navigateur**
 - [x] Cartes Leaflet + OSM (recherche, panier avec repère déplaçable, suivi, livreur, admin, inscription pharmacie) : conformité à la politique des tuiles documentée (`CARTOGRAPHIE.md`), test jsdom 19/19 ; **rendu visuel non vérifié dans un vrai navigateur**
+- [x] Horaires par jour (éditeur semaine, statut « ouverte jusqu'à… / ouvre demain… ») ; partage du numéro du patient avec le livreur (+ demande par le livreur, refus possible) ; **141 tests verts**
+- [ ] **Décision métier : flux d'argent** (`PAIEMENTS.md`) + éventuel registre de reversement des espèces
 - [ ] Renseigner `NEXT_PUBLIC_CONTACT_EMAIL` (contact recommandé par la politique OSM)
 - [ ] Redéployer (Render/Vercel) puis `seed:reset` pour obtenir les tarifs et les demandes de démonstration
 

@@ -13,6 +13,7 @@ import { authenticate, authorize } from '../../middleware/auth';
 import { orderService, assertCanView, loadOrder, orderCode } from './order.service';
 import { addressSchema } from '../addresses/addresses.routes';
 import { deliveryService, forViewer } from '../deliveries/delivery.service';
+import { phoneField } from '../../utils/phone';
 
 const createSchema = z.object({
   pharmacyId: objectIdSchema,
@@ -120,4 +121,17 @@ ordersRoutes.post('/:id/share-location', authorize('PATIENT'), validate({ params
 }));
 ordersRoutes.delete('/:id/share-location', authorize('PATIENT'), validate({ params: idParams }), asyncHandler(async (req: Request, res: Response) => {
   res.json({ data: await deliveryService.stopSharingPatientLocation(String(req.params.id), req.auth!) });
+}));
+
+const phoneSchema = z.object({ phone: phoneField.optional() }).strict();
+
+/** Le patient envoie son numéro au livreur assigné (numéro du profil, ou saisi). */
+ordersRoutes.post('/:id/share-phone', authorize('PATIENT'), validate({ params: idParams, body: phoneSchema }), asyncHandler(async (req: Request, res: Response) => {
+  res.json({ data: await deliveryService.sharePatientPhone(String(req.params.id), req.auth!, req.body.phone) });
+}));
+ordersRoutes.delete('/:id/share-phone', authorize('PATIENT'), validate({ params: idParams }), asyncHandler(async (req: Request, res: Response) => {
+  res.json({ data: await deliveryService.stopSharingPatientPhone(String(req.params.id), req.auth!) });
+}));
+ordersRoutes.post('/:id/decline-phone-request', authorize('PATIENT'), validate({ params: idParams }), asyncHandler(async (req: Request, res: Response) => {
+  res.json({ data: await deliveryService.declinePhoneRequest(String(req.params.id), req.auth!) });
 }));

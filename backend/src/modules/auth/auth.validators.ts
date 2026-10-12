@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { openingHoursSchema } from '../pharmacies/hours';
+import { phoneField } from '../../utils/phone';
 
 export const passwordSchema = z
   .string()
@@ -7,11 +9,7 @@ export const passwordSchema = z
   .regex(/[A-Za-z]/, 'Doit contenir une lettre')
   .regex(/[0-9]/, 'Doit contenir un chiffre');
 
-const phoneSchema = z
-  .string()
-  .trim()
-  .regex(/^\+?[0-9 ]{8,15}$/, 'Numéro de téléphone invalide')
-  .optional();
+const phoneSchema = phoneField.optional();
 
 export const registerSchema = z
   .object({
@@ -35,7 +33,7 @@ export const refreshSchema = z.object({ refreshToken: z.string().min(10) }).stri
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 
-const phoneRequired = z.string().trim().regex(/^\+?[0-9 ]{8,15}$/, 'Numéro de téléphone invalide');
+const phoneRequired = phoneField;
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure HH:MM attendue');
 
 /** Demande d'inscription d'une pharmacie : compte pharmacien + fiche pharmacie, EN ATTENTE de validation admin. */
@@ -53,10 +51,7 @@ export const registerPharmacySchema = registerSchema
         longitude: z.number().min(-180).max(180),
         phone: z.string().trim().max(30).optional(),
         is24h: z.boolean().optional(),
-        openingHours: z
-          .array(z.object({ day: z.number().int().min(0).max(6), open: hhmm.optional(), close: hhmm.optional(), closed: z.boolean().optional() }))
-          .max(7)
-          .optional(),
+        openingHours: openingHoursSchema.optional(),
         offersDelivery: z.boolean().optional(),
         offersPickup: z.boolean().optional(),
       })

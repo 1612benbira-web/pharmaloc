@@ -145,6 +145,13 @@ describe('INSCRIPTION - livreur (en attente de validation)', () => {
     expect((await api().patch('/api/agents/me').set(auth(b.accessToken)).send({ isAvailable: true })).status).toBe(403);
   });
 
+  it('accepte un téléphone formaté « +221 77 000 00 00 » (celui proposé dans le formulaire)', async () => {
+    await makeWorld();
+    const r = await api().post('/api/auth/register/courier').send(courierBody('fmt@test.sn', { phone: '+221 77 000 00 00' }));
+    expect(r.status).toBe(201);
+    expect((await api().post('/api/auth/register').send({ email: 'fmt2@test.sn', password: PASSWORD, firstName: 'A', lastName: 'B', phone: '+221 77 000 00 00' })).status).toBe(201);
+  });
+
   it('validation : téléphone et véhicule obligatoires, champs inconnus refusés', async () => {
     await makeWorld();
     const post = (b: object) => api().post('/api/auth/register/courier').send(b);

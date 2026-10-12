@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Badge, Card, useFetch } from '@/components/ui';
 import { type Obj } from '@/lib/api';
 import { useAuth, HOME } from '@/lib/auth';
+import { openLabel } from '@/lib/format';
 
 const steps = [
   ['1', 'Recherchez', 'Tapez le nom du médicament et voyez les pharmacies qui l’ont en stock.'],
@@ -47,7 +48,7 @@ export default function Home() {
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           {near.data?.map((p) => (
             <Card key={p.id}><div className="flex items-start justify-between gap-2"><h3 className="font-semibold">{p.name}</h3>{p.isOpen ? <Badge tone="green">Ouverte</Badge> : <Badge tone="gray">Fermée</Badge>}</div>
-              <p className="mt-1 text-sm text-ink/60">{p.address}</p><p className="mt-2 text-xs text-ink/50">Livraison {p.offersDelivery ? 'disponible' : 'non proposée'} · Retrait {p.offersPickup ? 'disponible' : 'non proposé'}</p></Card>
+              <p className="mt-1 text-sm text-ink/60">{p.address}</p><p className="mt-1 text-xs font-medium text-ink/70">{openLabel(p.openStatus, p.isOpen)}</p><p className="mt-2 text-xs text-ink/50">Livraison {p.offersDelivery ? 'disponible' : 'non proposée'} · Retrait {p.offersPickup ? 'disponible' : 'non proposé'}</p></Card>
           )) ?? <p className="text-sm text-ink/50">Chargement…</p>}
         </div>
       </section>

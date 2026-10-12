@@ -26,6 +26,12 @@ const deliverySchema = new Schema(
     patientLongitude: { type: Number },
     patientLocationAccuracy: { type: Number },
     patientLocationAt: { type: Date },
+    // Numéro de téléphone : partagé par le patient, OU demandé par le livreur puis accepté / refusé par le patient.
+    patientPhone: { type: String },
+    patientPhoneSharedAt: { type: Date },
+    phoneRequestStatus: { type: String, enum: ['requested', 'shared', 'declined'] },
+    phoneRequestedAt: { type: Date },
+    phoneRequestCount: { type: Number, default: 0 },
     pickedUpAt: { type: Date },
     deliveredAt: { type: Date },
   },

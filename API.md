@@ -31,7 +31,7 @@ Rôles : **P** = PATIENT · **PH** = PHARMACIST · **L** = DELIVERY_AGENT · **A
 | GET | /pharmacies/:id | public | Détail + note moyenne |
 | GET | /pharmacies/:id/delivery-quote?lat&lng | public | **Devis de livraison** : distance, frais, zone (`inZone`), détail du tarif |
 | POST | /pharmacies | A | Créer |
-| PATCH | /pharmacies/:id | A (tout), PH (sa pharmacie, champs limités) | Modifier |
+| PATCH | /pharmacies/:id | A (tout), PH (sa pharmacie, champs limités) | Modifier. `openingHours` : **jusqu'à 7 jours**, chacun `{day, open, close}` ou `{day, closed:true}` (0 = dimanche, fermeture ≤ ouverture = après minuit ; jour en double, heures identiques ou format invalide : 422) |
 | PATCH | /pharmacies/:id/validation | A | Valider / suspendre |
 
 ## Stock (un pharmacien est **toujours limité à sa pharmacie**)
@@ -62,6 +62,9 @@ Rôles : **P** = PATIENT · **PH** = PHARMACIST · **L** = DELIVERY_AGENT · **A
 | POST | /orders/:id/handover `{code}` | PH, A | Retrait en pharmacie (code du patient) : vente |
 | POST | /orders/:id/review | P | Évaluation après livraison |
 | POST, DELETE | /orders/:id/share-location `{latitude, longitude, accuracy?}` | P (propriétaire) | **Le patient envoie sa position au livreur** assigné (livraison en cours uniquement) / arrête le partage |
+| POST, DELETE | /orders/:id/share-phone `{phone?}` | P (propriétaire) | **Le patient envoie son numéro au livreur** (numéro du profil si `phone` absent) / arrête le partage |
+| POST | /orders/:id/decline-phone-request | P (propriétaire) | Refuse la demande de numéro du livreur (le livreur est informé) |
+| POST | /deliveries/:id/request-phone | L (assigné) | **Le livreur demande le numéro du patient** (3 demandes maximum par livraison, le patient décide) |
 | GET, PATCH | /agents/me | L | Disponibilité, véhicule, position |
 | GET | /agents | A | Supervision des livreurs |
 | GET | /deliveries/available, /deliveries/mine | L | Demandes / mes livraisons |
@@ -83,3 +86,9 @@ Types de mouvement : `delivery_received, sale, reservation, cancellation, adjust
 
 ## Tarif de livraison à la distance
 `frais = base + prix_par_km × max(0, distance − km_inclus)`, arrondi au multiple de **50 FCFA** supérieur. Distance à vol d'oiseau (Haversine, arrondie à 0,1 km) entre la pharmacie et l'adresse. Au-delà du rayon de la pharmacie : livraison refusée. Paramètres par pharmacie : `deliveryFee`, `deliveryPerKmFee`, `deliveryIncludedKm`, `deliveryRadiusKm` (modifiables via `PATCH /pharmacies/:id`). Exemple (500 + 150 FCFA/km au-delà de 1 km) : 1 km → 500 · 2 km → 650 · 5,3 km → 1150.
+
+## Horaires d'ouverture
+Chaque pharmacie définit **les jours ouvrables et, pour chacun, l'heure d'ouverture et de fermeture** (ou « fermé »), ou « 24 h/24 ». Les réponses `GET /pharmacies`, `GET /pharmacies/:id` et `GET /medicines/search` fournissent `isOpen` et `openStatus` : `{isOpen, is24h, closesAt?, opensAt?, opensInDays?}` (« ouverte jusqu'à 20:00 », « fermée · ouvre demain à 08:00 »). Heure de Dakar = UTC.
+
+## Numéros de téléphone
+Format accepté : 8 à 15 chiffres, avec `+`, espaces, points, tirets ou parenthèses (`+221 77 123 45 67`, `77.123.45.67`).

@@ -1,7 +1,7 @@
 import { Medicine, normalize } from '../../models/Medicine';
 import { Pharmacy } from '../../models/Pharmacy';
 import { Stock } from '../../models/Stock';
-import { haversineKm, isOpenNow } from '../../utils/geo';
+import { haversineKm, openingInfo } from '../../utils/geo';
 import { computeDeliveryFee } from '../pharmacies/deliveryFee';
 
 export interface SearchParams {
@@ -53,7 +53,8 @@ export async function searchOffers(p: SearchParams) {
         if (city && normalize(ph.city) !== city) continue;
       }
       const inStock = s.available > 0;
-      const open = isOpenNow(ph, now);
+      const status = openingInfo(ph, now);
+      const open = status.isOpen;
       const inRadius = distanceKm === undefined || distanceKm <= ph.deliveryRadiusKm;
       const deliveryAvailable = ph.offersDelivery && inStock && inRadius;
       const pickupAvailable = ph.offersPickup && inStock;
@@ -82,6 +83,7 @@ export async function searchOffers(p: SearchParams) {
         deliveryAvailable,
         pickupAvailable,
         isOpen: open,
+        openStatus: status,
       });
     }
     const sort = p.sort ?? (hasCoords ? 'distance' : 'availability');

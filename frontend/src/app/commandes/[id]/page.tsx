@@ -1,9 +1,10 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Badge, Button, Card, Notice, Page, useFetch } from '@/components/ui';
+import { Badge, Button, Card, Input, Notice, Page, useFetch } from '@/components/ui';
 import { api, ApiError, errMsg, type Obj } from '@/lib/api';
 import { ago, getPosition } from '@/lib/location';
+import { useAuth } from '@/lib/auth';
 import { RequireRole } from '@/lib/auth';
 import { dt, fcfa, PAY_LABEL, STATUS_LABEL } from '@/lib/format';
 import { statusTone } from '../page';
@@ -29,6 +30,39 @@ function ShareLocation({ orderId, sharedAt, onChange }: { orderId: string; share
       {sharedAt && <p className="text-emerald-700">✓ Position envoyée {ago(sharedAt)}</p>}
       <div className="flex flex-wrap gap-2"><Button onClick={send}>{sharedAt ? 'Mettre à jour ma position' : 'Envoyer ma position au livreur'}</Button>{sharedAt && <Button variant="outline" onClick={stop}>Arrêter le partage</Button>}</div>
       <label className="flex items-center gap-2 text-xs"><input type="checkbox" className="accent-brand-600" checked={auto} onChange={(e) => { setAuto(e.target.checked); if (e.target.checked) send(); }} />Mettre à jour automatiquement toutes les 30 s (garder cette page ouverte)</label>
+      {msg && <Notice>{msg}</Notice>}
+    </Card>
+  );
+}
+
+/** Le patient décide d'envoyer son numéro au livreur, ou répond à sa demande (accepter / refuser). */
+function PhoneSharing({ orderId, delivery, onChange }: { orderId: string; delivery?: Obj; onChange: () => void }) {
+  const { user } = useAuth();
+  const [phone, setPhone] = useState(user?.phone ?? '');
+  const [msg, setMsg] = useState('');
+  const status = delivery?.phoneRequestStatus as string | undefined;
+  const run = async (fn: () => Promise<unknown>) => { try { await fn(); setMsg(''); onChange(); } catch (e) { setMsg(errMsg(e)); } };
+  const share = () => run(() => api(`/orders/${orderId}/share-phone`, { method: 'POST', body: phone.trim() ? { phone: phone.trim() } : {} }));
+  return (
+    <Card className={`space-y-2 text-sm ${status === 'requested' ? 'border-amber-400 bg-amber-50' : ''}`}>
+      <p className="font-semibold">📞 Votre numéro pour le livreur</p>
+      {status === 'requested' && <p className="font-medium text-amber-900">Le livreur demande votre numéro pour vous joindre à l’arrivée.</p>}
+      {status === 'shared' && delivery?.patientPhone ? (
+        <>
+          <p className="text-emerald-700">✓ Numéro partagé : <b>{delivery.patientPhone}</b></p>
+          <Button variant="outline" onClick={() => run(() => api(`/orders/${orderId}/share-phone`, { method: 'DELETE' }))}>Arrêter le partage</Button>
+        </>
+      ) : (
+        <>
+          <p className="text-xs text-ink/60">Votre numéro est envoyé <b>uniquement au livreur de cette commande</b>, uniquement si vous le décidez, et il est effacé à la fin de la livraison. La pharmacie ne le voit pas.</p>
+          <Input label="Numéro de téléphone" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+221 77 123 45 67" />
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={share} disabled={!phone.trim() && !user?.phone}>{status === 'requested' ? 'Accepter et partager' : 'Envoyer mon numéro au livreur'}</Button>
+            {status === 'requested' && <Button variant="outline" onClick={() => run(() => api(`/orders/${orderId}/decline-phone-request`, { method: 'POST' }))}>Refuser</Button>}
+          </div>
+          {status === 'declined' && <p className="text-xs text-ink/50">Vous avez refusé la dernière demande ; vous pouvez toujours partager votre numéro.</p>}
+        </>
+      )}
       {msg && <Notice>{msg}</Notice>}
     </Card>
   );
@@ -80,6 +114,7 @@ function Tracking() {
             {o.payments?.[0]?.mode === 'DEMO' && <p className="mt-1 text-xs text-amber-700">Mode DEMO : aucun argent réel.</p>}
             {o.prescriptionRequired && <p className="mt-2 text-amber-700">⚠ Une ordonnance sera demandée par la pharmacie.</p>}
             {o.pharmacy && <p className="mt-2 text-ink/60">{o.pharmacy.address}{o.pharmacy.phone && ` · ${o.pharmacy.phone}`}</p>}</Card>
+          {o.deliveryType === 'delivery' && ['assigned', 'picked_up', 'in_delivery'].includes(o.status) && <PhoneSharing orderId={id} delivery={o.delivery} onChange={reload} />}
           {o.deliveryType === 'delivery' && ['assigned', 'picked_up', 'in_delivery'].includes(o.status) && <ShareLocation orderId={id} sharedAt={o.delivery?.patientLocationAt} onChange={reload} />}
           {['pending', 'confirmed'].includes(o.status) && <Button variant="danger" className="w-full" onClick={cancel}>Annuler la commande</Button>}
           {o.status === 'delivered' && <Card><p className="mb-2 text-sm font-semibold">Évaluer le service</p><div className="flex items-center gap-2"><select value={rating} onChange={(e) => setRating(+e.target.value)} className="rounded-lg border border-brand-200 px-2 py-1">{[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{'★'.repeat(n)}</option>)}</select><Button onClick={review}>Envoyer</Button></div></Card>}

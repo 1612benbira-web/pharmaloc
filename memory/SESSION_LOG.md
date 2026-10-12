@@ -25,3 +25,6 @@
 
 ## Session 3 (suite) - Cartes Leaflet
 **Demande** : ajouter Leaflet en respectant les conditions d'usage des tuiles. **Fait** : voir D-22 et `CARTOGRAPHIE.md`. Politique officielle OSM relue (tiles/ sur operations.osmfoundation.org). `react-leaflet` écarté (Hippocratic-2.1). **Vérifié** : 19 contrôles jsdom, en-têtes HTTP (Referrer-Policy), build. **Non vérifié** : rendu dans un vrai navigateur, glisser-déposer tactile.
+
+## Session 3 (suite 2) - Horaires par jour, numéro du patient, question paiements
+**Demande** : le pharmacien règle jours/heures d'ouverture ; le patient envoie son numéro au livreur, sinon le livreur le demande ; question « qui reçoit l'argent ». **Fait** : D-23 à D-26, `PAIEMENTS.md`. **Bug trouvé par les tests** : regex téléphone trop stricte (corrigé). **Vérifié** : 141 tests, builds. **Non vérifié** : rendu navigateur des nouvelles pages. **À décider** : modèle de répartition de l'argent.

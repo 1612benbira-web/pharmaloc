@@ -15,7 +15,7 @@
 | PurchaseOrder | Suggestion / bon de réapprovisionnement (lignes embarquées) | pharmacyId + status + createdAt |
 | Order | Commande (lignes et prix figés, statut, historique) | userId + createdAt ; pharmacyId + status + createdAt ; status |
 | Payment | Référence, montant, statut, **mode DEMO/LIVE** (aucune donnée bancaire) | orderId |
-| Delivery, DeliveryAssignment, DeliveryAgent | Livraison au patient (+ **position partagée par le patient**, effacée à la fin), historique d'assignation, profil livreur | status + createdAt ; deliveryAgentId + status |
+| Delivery, DeliveryAssignment, DeliveryAgent | Livraison au patient (+ **position et numéro partagés par le patient** `patientPhone`, état de la demande `phoneRequestStatus` : effacés à la fin), historique d'assignation, profil livreur | status + createdAt ; deliveryAgentId + status |
 | Address, Review, Notification, AuditLog | Annexes | userId ; orderId unique ; userId + createdAt ; action, createdAt |
 
 Écart assumé avec la spécification : `Stock` ne porte pas un seul lot mais des **StockBatch** (plusieurs lots et expirations par produit, vente FEFO). `DeliveryItem` et `PurchaseOrderItem` sont des sous-documents.

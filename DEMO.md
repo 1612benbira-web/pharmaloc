@@ -34,6 +34,11 @@ Tableau de bord : « **Ibuprofène 400 mg risque d'être en rupture dans environ
 2. Pharmacien → **Paramètres** : modifier le tarif (aperçu à 1, 2, 3, 5, 8 km).
 3. Une fois un livreur assigné, le **patient** voit « Aider le livreur à vous trouver » → *Envoyer ma position* (ou mise à jour automatique toutes les 30 s). Le **livreur** voit « position partagée par le client » et un lien d'itinéraire. La pharmacie ne la voit pas ; elle est effacée à la livraison.
 
+## Scénario 6 : horaires d'ouverture et numéro du patient
+1. **Pharmacien** → **Paramètres** → « Jours et horaires d'ouverture » : cocher les jours ouvrables, régler l'ouverture et la fermeture de chaque jour (fermeture après minuit possible), « Copier les heures du lundi ». Côté **patient**, les pharmacies affichent « 🟢 Ouverte jusqu'à 20:00 » ou « ⚪ Fermée · ouvre demain à 08:00 ».
+2. Une fois un livreur assigné, **patient** → page de la commande → « 📞 Votre numéro pour le livreur » → *Envoyer mon numéro au livreur*. Le **livreur** voit le numéro avec les liens **Appeler** et **WhatsApp**.
+3. Sinon, le **livreur** clique « 📞 Demander le numéro du client » : le patient reçoit une notification et une carte jaune « Le livreur demande votre numéro » → **Accepter** ou **Refuser** (le livreur en est informé). Numéro effacé à la fin de la livraison.
+
 ## Cartes (Leaflet + OpenStreetMap)
 Bouton **« 🗺 Voir la carte »** (rien n'est chargé avant le clic) : *Recherche* (pharmacies, stock, prix) · *Panier* → « Préciser mon point sur la carte » : cliquer ou **déplacer le repère rouge**, la distance et les frais se mettent à jour · *Suivi de commande* (pharmacie, adresse, livreur, position partagée) · *Livreur* · *Admin → Demandes* (vérifier la pharmacie) · *Inscription pharmacie* (placer la pharmacie). L'attribution « © OpenStreetMap contributors » est visible sur chaque carte.
 

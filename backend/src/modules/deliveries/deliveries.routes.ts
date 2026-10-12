@@ -52,6 +52,10 @@ deliveriesRoutes.post('/:id/start', authorize('DELIVERY_AGENT'), validate({ para
 deliveriesRoutes.post('/:id/location', authorize('DELIVERY_AGENT'), validate({ params: idParams, body: locationSchema }), asyncHandler(async (req: Request, res: Response) => {
   res.json({ data: await deliveryService.updateLocation(String(req.params.id), req.auth!, req.body.latitude, req.body.longitude) });
 }));
+/** Le livreur demande le numéro du patient (le patient décide). */
+deliveriesRoutes.post('/:id/request-phone', authorize('DELIVERY_AGENT'), validate({ params: idParams }), asyncHandler(async (req: Request, res: Response) => {
+  res.json({ data: await deliveryService.requestPatientPhone(String(req.params.id), req.auth!) });
+}));
 deliveriesRoutes.post('/:id/complete', authorize('DELIVERY_AGENT'), validate({ params: idParams, body: codeSchema }), asyncHandler(async (req: Request, res: Response) => {
   res.json({ data: await deliveryService.complete(String(req.params.id), req.auth!, req.body.code) });
 }));

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Badge, Button, Card, Input, Notice, Page, useFetch } from '@/components/ui';
 import { api, errMsg, type Obj } from '@/lib/api';
 import { RequireRole } from '@/lib/auth';
-import { fcfa, PAY_LABEL, STATUS_LABEL } from '@/lib/format';
+import { fcfa, PAY_LABEL, STATUS_LABEL, telHref, waHref } from '@/lib/format';
 import { ago, osmDirections, osmPoint } from '@/lib/location';
 import { LazyMap, MapView, type MapMarker } from '@/components/MapView';
 
@@ -48,10 +48,19 @@ function Agent() {
                 <p className="mt-1 rounded-lg bg-emerald-50 p-2 text-sm text-emerald-900">📍 <b>Position partagée par le client</b> ({ago(d.patientLocationAt)}) · <a className="underline" target="_blank" rel="noreferrer" href={osmPoint(d.patientLatitude, d.patientLongitude)}>voir sur la carte</a>
                   {' · '}<a className="font-semibold underline" target="_blank" rel="noreferrer" href={osmDirections(d.agentLatitude != null ? { latitude: d.agentLatitude, longitude: d.agentLongitude } : d.pickupLocation, { latitude: d.patientLatitude, longitude: d.patientLongitude })}>itinéraire vers le client</a></p>
               )}
+              {d.patientPhone ? (
+                <p className="mt-1 rounded-lg bg-emerald-50 p-2 text-sm text-emerald-900">📞 <b>Numéro du client :</b> <a className="font-semibold underline" href={telHref(d.patientPhone)}>{d.patientPhone}</a>
+                  {' · '}<a className="underline" target="_blank" rel="noreferrer" href={waHref(d.patientPhone)}>WhatsApp</a></p>
+              ) : d.phoneRequestStatus === 'requested' ? (
+                <p className="mt-1 rounded-lg bg-amber-50 p-2 text-sm text-amber-900">⏳ Demande de numéro envoyée au client : en attente de sa réponse.</p>
+              ) : d.phoneRequestStatus === 'declined' ? (
+                <p className="mt-1 rounded-lg bg-gray-100 p-2 text-sm text-ink/70">🚫 Le client préfère ne pas partager son numéro. Utilisez sa position partagée ou contactez la pharmacie.</p>
+              ) : null}
               <p className="text-sm text-ink/60">{fcfa(d.order?.totalAmount ?? 0)} · {PAY_LABEL[d.order?.paymentMethod]} {d.order?.paymentMethod === 'cash_on_delivery' && <b className="text-amber-700">· à encaisser</b>}</p></div><Badge tone="blue">{STATUS_LABEL[d.status]}</Badge></div>
             {deliveryMarkers(d).length > 0 && <div className="mt-3"><LazyMap label="Voir la carte" hint="🏪 pharmacie · 📍 adresse du client · 🏠 position partagée par le client · 🛵 ma position"><MapView markers={deliveryMarkers(d)} fitKey={`${d._id}:${d.status}:${d.patientLocationAt ?? ''}`} height={300} /></LazyMap></div>}
             <div className="mt-3 flex flex-wrap items-end gap-2">
               {route(d.pickupLocation, d.deliveryLocation) && <a className="rounded-lg border border-brand-200 px-4 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-50" target="_blank" rel="noreferrer" href={route(d.pickupLocation, d.deliveryLocation)}>Itinéraire</a>}
+              {!d.patientPhone && d.phoneRequestStatus !== 'requested' && (d.phoneRequestCount ?? 0) < 3 && <Button variant="outline" onClick={() => call(() => api(`/deliveries/${d._id}/request-phone`, { method: 'POST' }), 'Demande envoyée au client.')}>📞 {d.phoneRequestStatus === 'declined' ? 'Redemander' : 'Demander'} le numéro du client</Button>}
               {d.status === 'assigned' && <Button onClick={() => call(() => api(`/deliveries/${d._id}/pickup`, { method: 'POST' }), 'Commande récupérée.')}>J’ai récupéré la commande</Button>}
               {d.status === 'picked_up' && <Button onClick={() => call(() => api(`/deliveries/${d._id}/start`, { method: 'POST' }), 'Livraison démarrée.')}>Démarrer la livraison</Button>}
               {d.status === 'in_delivery' && <><Button variant="outline" onClick={() => share(d._id)}>📍 Partager ma position</Button>

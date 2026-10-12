@@ -13,11 +13,48 @@ interface HoursLike {
   openingHours?: { day: number; open?: string | null; close?: string | null; closed?: boolean | null }[] | null;
 }
 
-/** Dakar est en GMT (UTC+0, sans changement d'heure) : on utilise l'heure UTC. */
-export function isOpenNow(p: HoursLike, now = new Date()): boolean {
-  if (p.is24h) return true;
-  const today = p.openingHours?.find((h) => h.day === now.getUTCDay());
-  if (!today || today.closed || !today.open || !today.close) return false;
-  const hhmm = `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`;
-  return hhmm >= today.open && hhmm < today.close;
+export interface OpeningInfo {
+  isOpen: boolean;
+  is24h: boolean;
+  /** Si ouverte : heure de fermeture (HH:MM). */
+  closesAt?: string;
+  /** Si fermée : prochaine heure d'ouverture (HH:MM) et dans combien de jours (0 = aujourd'hui). */
+  opensAt?: string;
+  opensInDays?: number;
 }
+
+const toMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+
+/**
+ * Statut d'ouverture. Dakar est en GMT (UTC+0, sans changement d'heure) : on utilise l'heure UTC.
+ * Jour = 0 (dimanche) à 6 (samedi). Une fermeture <= ouverture signifie « après minuit » (ex. 20:00 -> 02:00).
+ */
+export function openingInfo(p: HoursLike, now = new Date()): OpeningInfo {
+  if (p.is24h) return { isOpen: true, is24h: true };
+  const hours = p.openingHours ?? [];
+  const range = (d: number) => {
+    const h = hours.find((x) => x.day === (((d % 7) + 7) % 7));
+    return h && !h.closed && h.open && h.close ? { open: h.open, close: h.close } : null;
+  };
+  const t = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const d = now.getUTCDay();
+  const today = range(d);
+  const yesterday = range(d - 1);
+
+  if (today) {
+    const o = toMin(today.open), c = toMin(today.close);
+    if (o < c ? t >= o && t < c : t >= o) return { isOpen: true, is24h: false, closesAt: today.close };
+  }
+  if (yesterday) {
+    const o = toMin(yesterday.open), c = toMin(yesterday.close);
+    if (c <= o && t < c) return { isOpen: true, is24h: false, closesAt: yesterday.close }; // ouverture débordant après minuit
+  }
+  if (today && t < toMin(today.open)) return { isOpen: false, is24h: false, opensAt: today.open, opensInDays: 0 };
+  for (let i = 1; i <= 7; i++) {
+    const next = range(d + i);
+    if (next) return { isOpen: false, is24h: false, opensAt: next.open, opensInDays: i };
+  }
+  return { isOpen: false, is24h: false };
+}
+
+export const isOpenNow = (p: HoursLike, now = new Date()): boolean => openingInfo(p, now).isOpen;
