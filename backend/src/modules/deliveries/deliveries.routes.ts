@@ -11,6 +11,8 @@ import { validate } from '../../middleware/validate';
 import { authenticate, authorize } from '../../middleware/auth';
 import { deliveryService, forViewer } from './delivery.service';
 import { assertCanView } from '../orders/order.service';
+import { phoneField } from '../../utils/phone';
+import { settlementService } from '../settlements/settlement.service';
 
 const codeSchema = z.object({ code: z.string().regex(/^\d{6}$/, 'Code à 6 chiffres') }).strict();
 const locationSchema = z.object({ latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180) }).strict();
@@ -19,6 +21,8 @@ const availabilitySchema = z.object({
   vehicle: z.string().trim().max(60).optional(),
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
+  payoutOperator: z.enum(['wave', 'orange_money']).optional(),
+  payoutPhone: phoneField.optional(),
 }).strict();
 
 export const deliveriesRoutes = Router();
@@ -73,7 +77,10 @@ agentsRoutes.get('/me', authorize('DELIVERY_AGENT'), asyncHandler(async (req: Re
   res.json({ data: (await DeliveryAgent.findOne({ userId: oid(req.auth!.id) }).lean()) ?? { userId: req.auth!.id, isAvailable: false } });
 }));
 agentsRoutes.patch('/me', authorize('DELIVERY_AGENT'), validate({ body: availabilitySchema }), asyncHandler(async (req: Request, res: Response) => {
-  res.json({ data: await deliveryService.setAvailability(req.auth!.id, req.body) });
+  const profile = await deliveryService.setAvailability(req.auth!.id, req.body);
+  // compte de réception renseigné : les versements en attente partent aussitôt
+  if (req.body.payoutOperator || req.body.payoutPhone) await settlementService.retryFor({ recipientType: 'COURIER', recipientId: req.auth!.id });
+  res.json({ data: profile });
 }));
 agentsRoutes.get('/', authorize('ADMIN'), asyncHandler(async (_req: Request, res: Response) => {
   const agents = await DeliveryAgent.find().lean();

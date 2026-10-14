@@ -1,32 +1,45 @@
-# Flux financiers : qui reçoit l'argent ?
+# Paiements et répartition : qui reçoit l'argent ?
 
-> **État honnête** : les paiements de PharmaLoc sont en **mode DEMO**. Aucun argent ne circule. Ce document décrit ce que fait l'application aujourd'hui, les modèles possibles, et la **décision métier à prendre**. Je ne suis pas juriste : toute mise en production réelle demande un avis juridique et un prestataire de paiement agréé.
+> **État honnête** : la **logique de répartition automatique est implémentée et testée**, mais les paiements et les versements restent en **mode DEMO** : **aucun argent réel ne circule**. Brancher un vrai prestataire (Wave, Orange Money, PayTech…) demande un compte professionnel, des clés d'accès et un avis juridique (voir §5). Je ne suis pas juriste.
 
-## 1. Ce que fait l'application aujourd'hui
-- Une commande a un montant `totalAmount = sous-total (médicaments) + frais de livraison`.
-- **Mobile money / carte en ligne** : simulés par le fournisseur `demo` (statut « payé » immédiat, marqué `DEMO`).
-- **Espèces à la livraison ou au retrait** : statut « à régler », puis « payé » quand la remise est confirmée par le code.
-- **Rien ne détermine à qui va l'argent** : pas de compte de la pharmacie, du livreur ou de la plateforme, pas de reversement. Le livreur voit seulement « à encaisser : 2 250 FCFA ».
+## 1. La règle de répartition
+| Montant | Bénéficiaire |
+|---|---|
+| Prix des médicaments | **La pharmacie** |
+| Frais de livraison | **Le livreur** (il les garde) |
+| Commission de la plateforme | **Aucune** à ce stade |
 
-## 2. À qui devrait revenir chaque montant
-| Montant | Revient à | Remarque |
-|---|---|---|
-| Médicaments (sous-total) | **La pharmacie** : c'est elle qui vend | Prix fixés par la pharmacie |
-| Frais de livraison | **Le livreur** (ou la plateforme qui le rémunère) | À décider |
+La somme des parts est toujours égale au total payé (testé).
 
-## 3. Modèles possibles
-**A. Paiement en ligne (mobile money, carte)**
-- *Idéal* : le prestataire (Wave, Orange Money, PayTech…) crédite directement le **compte marchand de la pharmacie**, avec répartition des frais de livraison si le prestataire le permet. PharmaLoc **ne détient jamais** les fonds.
-- *Alternative* : la plateforme encaisse puis reverse. Détenir l'argent de tiers est généralement une activité réglementée : à valider avec un juriste et un prestataire agréé avant d'envisager cette voie.
+## 2. Ce qui se passe, selon le mode de paiement
+| Commande | À la confirmation de la livraison (le patient donne son code) |
+|---|---|
+| **Livraison payée en ligne** (Wave / Orange Money) | La pharmacie reçoit le prix des médicaments, le livreur reçoit les frais, **chacun sur son compte**, automatiquement |
+| **Retrait payé en ligne** | La pharmacie reçoit la totalité |
+| **Livraison payée en espèces** | Le livreur a encaissé le total : il **garde ses frais** et doit **remettre le prix des médicaments** à la pharmacie, qui **confirme la réception** dans l'application |
+| **Retrait payé en espèces** | La pharmacie encaisse elle-même : rien à reverser |
+| **Annulation avant livraison** | Remboursement du patient, aucune répartition |
 
-**B. Espèces à la livraison**
-Le **livreur encaisse le total** chez le patient. Il conserve les frais de livraison (si telle est la règle) et **remet le montant des médicaments à la pharmacie**. Le risque est la traçabilité : sans registre, personne ne peut prouver ce qui a été remis.
+Le paiement en ligne est considéré comme **conservé jusqu'à la livraison** : rien n'est versé avant le code de confirmation.
 
-**C. Espèces au retrait**
-La pharmacie encaisse elle-même, sans livreur : aucun problème de reversement.
+## 3. Garanties techniques (testées, 18 scénarios)
+- **Jamais de double versement** : une seule répartition par commande, un seul versement par bénéficiaire (index uniques), versement réservé de façon atomique avant envoi, clé d'idempotence transmise au prestataire.
+- **Compte de réception absent** : le versement reste « en attente » puis part dès que le bénéficiaire renseigne son compte (Wave / Orange Money). Aucun numéro bancaire n'est demandé.
+- **Échec du prestataire** : versement « échec », relance par l'administrateur, **5 tentatives maximum**.
+- **Espèces** : plafond d'espèces détenues par un livreur (**50 000 FCFA** par défaut, `CASH_LIMIT_FCFA`) : au-delà, il ne peut plus accepter de livraison tant qu'il n'a pas remis l'argent. Alertes d'ancienneté, vue d'ensemble pour l'admin.
+- **Rattrapage** : une livraison sans répartition (panne au mauvais moment) est répartie par l'admin en un clic.
+- **Confidentialité** : le numéro du compte de réception n'est visible que de son propriétaire et de l'admin ; l'historique ne garde que les 2 derniers chiffres. Chaque étape est tracée (audit).
 
-## 4. Ce qui manque pour le modèle B (non implémenté)
-Un **registre de reversement** : pour chaque livraison payée en espèces, le montant encaissé, la part du livreur, la part de la pharmacie, et un statut « à remettre » puis « remis » **confirmé par le pharmacien**. Avec un solde par livreur, une vue pour la pharmacie (espèces dues) et pour l'admin (encours, retards). À construire si ce modèle est retenu.
+## 4. Où voir quoi
+Pharmacien : **Paiements** (reçu en ligne, espèces à recevoir, confirmer la réception) · Livreur : **Mes gains** (frais gagnés, espèces à remettre, compte de réception) · Admin : onglet **Finances** (volumes, espèces par livreur, versements à corriger).
 
-## 5. Recommandation pour le concours
-Garder le mode DEMO, **dire clairement au jury qu'aucun argent réel ne circule**, présenter le modèle retenu (A pour le paiement en ligne, B pour les espèces) et, si le temps le permet, ajouter le registre de reversement qui rend le modèle B vérifiable.
+## 5. Pour passer à de vrais paiements (non fait)
+1. **Compte professionnel** chez un prestataire agréé offrant la **collecte** (paiement du patient, avec confirmation par *webhook*) **et** les **versements** (API de décaissement vers un numéro Wave / Orange Money).
+2. Implémenter les deux interfaces déjà prévues : `PaymentProvider` (collecte, `modules/payments/payment.service.ts`) et `PayoutProvider` (versement, `modules/payments/payout.service.ts`, fonction `registerPayoutProvider`), puis les activer par `PAYMENT_PROVIDER` et `PAYOUT_PROVIDER`. Tester dans le **bac à sable** du prestataire.
+3. **Cadre juridique** : conserver l'argent d'un client jusqu'à la livraison, puis le répartir, ressemble à de la détention de fonds de tiers, activité réglementée. Le plus sûr est un produit de **séquestre / répartition** fourni par un prestataire agréé, pour que PharmaLoc ne détienne jamais les fonds. À faire valider par un juriste.
+4. **Vérification d'identité** (KYC) des pharmacies et des livreurs bénéficiaires.
+5. **Décisions à prendre** : qui supporte les **frais du prestataire** (retenue sur chaque part ? sur la pharmacie ?), éventuelle **commission**, traitement fiscal.
+6. **Litiges** : après la livraison, aucun remboursement automatique n'est prévu ; à traiter par l'administration.
+
+## 6. Pour le jury
+Dire clairement que **le paiement est une démonstration**, montrer que la **logique de répartition est réelle et vérifiable** (tableaux Paiements / Mes gains / Finances), et présenter le plan d'intégration du §5.

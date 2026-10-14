@@ -38,3 +38,11 @@ export function waHref(phone: string) {
   if (d.length === 9) d = `221${d}`;
   return `https://wa.me/${d}`;
 }
+
+export const SETTLEMENT_STATUS: Record<string, string> = {
+  pending: 'En attente du compte de réception', partial: 'Partiellement versé', paid: 'Versé', failed: 'Échec : relance nécessaire',
+  cash_due: 'Espèces à remettre', cash_remitted: 'Espèces remises', settled: 'Encaissé en pharmacie',
+};
+export const SETTLEMENT_KIND: Record<string, string> = { online: 'Paiement en ligne', cash_delivery: 'Espèces à la livraison', cash_pickup: 'Espèces au retrait' };
+export const OPERATOR_LABEL: Record<string, string> = { wave: 'Wave', orange_money: 'Orange Money' };
+export const settlementTone = (s: string) => (['paid', 'cash_remitted', 'settled'].includes(s) ? 'green' : s === 'failed' ? 'red' : 'amber') as 'green' | 'red' | 'amber';

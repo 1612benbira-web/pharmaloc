@@ -12,6 +12,7 @@ import { changeStatus, checkCode, consumeOrderStock, loadOrder } from '../orders
 import type { AuthUser } from '../../middleware/auth';
 import { User } from '../../models/User';
 import { PRIVATE_FIELDS, UNSET_PRIVATE } from './privacy';
+import { settlementService } from '../settlements/settlement.service';
 import { isValidPhone, normalizePhone, PHONE_MESSAGE } from '../../utils/phone';
 
 export const MAX_ACTIVE_DELIVERIES = 3;
@@ -35,7 +36,7 @@ async function mine(deliveryId: string, auth: AuthUser) {
 }
 
 export const deliveryService = {
-  async setAvailability(userId: string, data: { isAvailable?: boolean; vehicle?: string; latitude?: number; longitude?: number }) {
+  async setAvailability(userId: string, data: { isAvailable?: boolean; vehicle?: string; latitude?: number; longitude?: number; payoutOperator?: 'wave' | 'orange_money'; payoutPhone?: string }) {
     const set: Record<string, unknown> = { ...data };
     if (data.latitude !== undefined && data.longitude !== undefined) set.locationUpdatedAt = new Date();
     return DeliveryAgent.findOneAndUpdate({ userId: oid(userId) }, { $set: set, $setOnInsert: { userId: oid(userId) } }, { upsert: true, new: true });
@@ -60,6 +61,8 @@ export const deliveryService = {
     if (!agent?.isAvailable) throw AppError.conflict('Passez en disponible pour accepter une livraison');
     const active = await Delivery.countDocuments({ deliveryAgentId: oid(auth.id), status: { $in: ['assigned', 'picked_up', 'in_delivery'] } });
     if (active >= MAX_ACTIVE_DELIVERIES) throw AppError.conflict(`Maximum ${MAX_ACTIVE_DELIVERIES} livraisons en cours`);
+
+    await settlementService.assertCanTakeDelivery(auth.id); // trop d'espèces non remises : refus
 
     const delivery = await Delivery.findOneAndUpdate(
       { _id: oid(deliveryId), status: 'searching' },

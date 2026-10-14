@@ -13,6 +13,15 @@ import { validate } from '../../middleware/validate';
 import { authenticate, authorize, optionalAuthenticate } from '../../middleware/auth';
 import { audit } from '../../services/audit.service';
 import { deliveryQuote } from './deliveryFee';
+import { phoneField } from '../../utils/phone';
+import { settlementService } from '../settlements/settlement.service';
+
+/** Le compte de réception des paiements n'est JAMAIS public : propriétaire et admin seulement. */
+const hidePayout = <T extends Record<string, unknown>>(p: T, privileged: boolean): T => {
+  if (privileged) return p;
+  const { payoutOperator: _o, payoutPhone: _p, ...rest } = p;
+  return rest as unknown as T;
+};
 import { notify } from '../../services/notification.service';
 
 const base = {
@@ -31,6 +40,8 @@ const base = {
   deliveryFee: z.number().min(0).max(100000).optional(),
   deliveryPerKmFee: z.number().min(0).max(10000).optional(),
   deliveryIncludedKm: z.number().min(0).max(50).optional(),
+  payoutOperator: z.enum(['wave', 'orange_money']).optional(),
+  payoutPhone: phoneField.optional(),
   deliveryRadiusKm: z.number().min(0).max(100).optional(),
 };
 const createSchema = z.object({ ...base, isValidated: z.boolean().optional() }).strict();
@@ -40,6 +51,7 @@ const ownerPatch = z
     phone: base.phone, email: base.email, is24h: base.is24h, openingHours: base.openingHours,
     offersDelivery: base.offersDelivery, offersPickup: base.offersPickup, deliveryFee: base.deliveryFee, deliveryRadiusKm: base.deliveryRadiusKm,
     deliveryPerKmFee: base.deliveryPerKmFee, deliveryIncludedKm: base.deliveryIncludedKm,
+    payoutOperator: base.payoutOperator, payoutPhone: base.payoutPhone,
   })
   .partial()
   .strict();
@@ -61,7 +73,8 @@ pharmaciesRoutes.get('/', optionalAuthenticate, validate({ query: listQuery }), 
   if (q.delivery) filter.offersDelivery = true;
   const all = await Pharmacy.find(filter).lean();
   const now = new Date();
-  let items = all.map((p) => ({
+  const isAdmin = req.auth?.role === 'ADMIN';
+  let items = all.map((raw) => hidePayout(raw as Record<string, unknown>, isAdmin) as typeof raw).map((p) => ({
     ...p,
     id: String(p._id),
     isOpen: isOpenNow(p, now),
@@ -91,7 +104,7 @@ pharmaciesRoutes.get('/:id', optionalAuthenticate, validate({ params: idParams }
   if (!p || (!privileged && (!p.isActive || !p.isValidated))) throw AppError.notFound('Pharmacie introuvable');
   const reviews = await Review.find({ pharmacyId: p._id }).select('rating').lean();
   const rating = reviews.length ? Math.round((reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) * 10) / 10 : null;
-  res.json({ data: { ...p, id: String(p._id), isOpen: isOpenNow(p), openStatus: openingInfo(p), rating, reviewCount: reviews.length } });
+  res.json({ data: { ...hidePayout(p as Record<string, unknown>, privileged), id: String(p._id), isOpen: isOpenNow(p), openStatus: openingInfo(p), rating, reviewCount: reviews.length } });
 }));
 
 pharmaciesRoutes.post('/', authenticate, authorize('ADMIN'), validate({ body: createSchema }), asyncHandler(async (req: Request, res: Response) => {
@@ -108,6 +121,7 @@ pharmaciesRoutes.patch('/:id', authenticate, authorize('ADMIN', 'PHARMACIST'), v
   if (!parsed.success) throw AppError.validation(parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })));
   const p = await Pharmacy.findByIdAndUpdate(id, { $set: parsed.data }, { new: true });
   if (!p) throw AppError.notFound('Pharmacie introuvable');
+  if (parsed.data.payoutOperator || parsed.data.payoutPhone) await settlementService.retryFor({ recipientType: 'PHARMACY', recipientId: id });
   await audit({ action: 'pharmacy.update', userId: req.auth!.id, entity: 'Pharmacy', entityId: id, metadata: { fields: Object.keys(parsed.data) }, req });
   res.json({ data: p });
 }));

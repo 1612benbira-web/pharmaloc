@@ -15,6 +15,7 @@ import { deliveriesRoutes, deliveryAssignmentsRoutes, agentsRoutes } from '../mo
 import { paymentsRoutes } from '../modules/payments/payments.routes';
 import { dashboardRoutes } from '../modules/dashboard/dashboard.routes';
 import { auditRoutes } from '../modules/audit/audit.routes';
+import { settlementsRoutes } from '../modules/settlements/settlements.routes';
 
 export const apiRouter = Router();
 
@@ -41,5 +42,6 @@ apiRouter.use('/deliveries', deliveriesRoutes);
 apiRouter.use('/delivery-assignments', deliveryAssignmentsRoutes);
 apiRouter.use('/agents', agentsRoutes);
 apiRouter.use('/payments', paymentsRoutes);
+apiRouter.use('/settlements', settlementsRoutes);
 apiRouter.use('/dashboard', dashboardRoutes);
 apiRouter.use('/audit-logs', auditRoutes);

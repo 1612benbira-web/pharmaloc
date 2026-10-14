@@ -21,6 +21,9 @@ const pharmacySchema = new Schema(
     phone: { type: String, trim: true },
     email: { type: String, trim: true, lowercase: true },
     licenseNumber: { type: String, trim: true }, // n° d'agrément / d'ordre
+    // Compte de réception des paiements en ligne (numéro Wave / Orange Money : aucune donnée bancaire)
+    payoutOperator: { type: String, enum: ['wave', 'orange_money'] },
+    payoutPhone: { type: String, trim: true },
     isActive: { type: Boolean, default: true },
     isValidated: { type: Boolean, default: false }, // validée par un administrateur
     is24h: { type: Boolean, default: false },

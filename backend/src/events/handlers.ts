@@ -3,6 +3,7 @@ import { Order } from '../models/Order';
 import { Pharmacy } from '../models/Pharmacy';
 import { notify } from '../services/notification.service';
 import { paymentService } from '../modules/payments/payment.service';
+import { settlementService } from '../modules/settlements/settlement.service';
 
 let registered = false;
 
@@ -63,8 +64,10 @@ export function registerEventHandlers(): void {
   });
 
   // Livraison / retrait terminé : encaissement des paiements en espèces et notification.
+  // Livraison confirmée (le patient a donné son code) : espèces encaissées, puis répartition pharmacie / livreur.
   eventBus.on('DELIVERY_COMPLETED', async ({ orderId }) => {
     await paymentService.markCashPaid(orderId);
+    await settlementService.release(orderId);
   });
 
   eventBus.on('PAYMENT_CONFIRMED', async ({ orderId }) => {

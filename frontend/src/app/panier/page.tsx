@@ -128,7 +128,7 @@ function Checkout() {
             <div className="flex justify-between"><dt>Livraison{quote && ` (${quote.distanceKm} km)`}</dt><dd>{fee === null ? '—' : fcfa(fee)}</dd></div>
             <div className="flex justify-between border-t border-brand-100 pt-2 text-base font-bold"><dt>Total</dt><dd>{fee === null ? `${fcfa(subtotal)} + livraison` : fcfa(subtotal + fee)}</dd></div>
           </dl>
-          <Notice tone="info">Mode DEMO : aucun paiement réel n’est effectué.</Notice>
+          <Notice tone="info">Mode DEMO : aucun paiement réel n’est effectué.{method !== 'cash_on_delivery' && method !== 'cash_on_pickup' ? ' En production, votre paiement serait réparti automatiquement à la confirmation de la livraison : médicaments pour la pharmacie, frais pour le livreur.' : method === 'cash_on_delivery' ? ' Vous payez le livreur à la réception.' : ' Vous payez à la pharmacie au retrait.'}</Notice>
           {error && <Notice>{error}</Notice>}
           <Button className="w-full" disabled={busy || !canOrder} onClick={submit}>{busy ? 'Validation…' : 'Confirmer la commande'}</Button>
         </Card>

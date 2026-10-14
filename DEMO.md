@@ -39,6 +39,14 @@ Tableau de bord : « **Ibuprofène 400 mg risque d'être en rupture dans environ
 2. Une fois un livreur assigné, **patient** → page de la commande → « 📞 Votre numéro pour le livreur » → *Envoyer mon numéro au livreur*. Le **livreur** voit le numéro avec les liens **Appeler** et **WhatsApp**.
 3. Sinon, le **livreur** clique « 📞 Demander le numéro du client » : le patient reçoit une notification et une carte jaune « Le livreur demande votre numéro » → **Accepter** ou **Refuser** (le livreur en est informé). Numéro effacé à la fin de la livraison.
 
+## Scénario 7 : répartition automatique de l'argent
+1. Le seed contient 4 commandes déjà réparties (une en ligne versée, une au retrait en espèces, une livraison en espèces remise à la pharmacie, une livraison en espèces **à remettre**).
+2. **Pharmacien** → **Paiements** : « Reçu en ligne », « Espèces à recevoir des livreurs » ; cliquer **J'ai reçu les espèces** sur la commande en attente.
+3. **Livreur** → **Mes gains** : frais gagnés (en ligne + gardés sur les espèces), espèces à remettre, compte de réception Orange Money.
+4. En direct : **patient** commande en livraison avec **Mobile money (DEMO)**, le pharmacien prépare, le livreur livre (code du patient) → les deux reçoivent leur part aussitôt (notifications « Paiement reçu »). Avec **Espèces à la livraison**, le livreur voit « vous gardez X, remettez Y ».
+5. **Admin** → **Finances** : volumes, espèces détenues par livreur, versements à corriger.
+*Rappel au jury : tout est en mode DEMO, aucun argent réel.*
+
 ## Cartes (Leaflet + OpenStreetMap)
 Bouton **« 🗺 Voir la carte »** (rien n'est chargé avant le clic) : *Recherche* (pharmacies, stock, prix) · *Panier* → « Préciser mon point sur la carte » : cliquer ou **déplacer le repère rouge**, la distance et les frais se mettent à jour · *Suivi de commande* (pharmacie, adresse, livreur, position partagée) · *Livreur* · *Admin → Demandes* (vérifier la pharmacie) · *Inscription pharmacie* (placer la pharmacie). L'attribution « © OpenStreetMap contributors » est visible sur chaque carte.
 

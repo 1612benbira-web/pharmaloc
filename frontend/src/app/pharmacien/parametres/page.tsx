@@ -21,7 +21,7 @@ const defaultWeek = (): Record<number, Day> =>
 function Settings() {
   const { user } = useAuth();
   const { data, error, reload } = useFetch<Obj>(user?.pharmacyId ? `/pharmacies/${user.pharmacyId}` : null);
-  const [f, setF] = useState({ phone: '', base: '500', perKm: '150', included: '1', radius: '10', offersDelivery: true, offersPickup: true, is24h: false });
+  const [f, setF] = useState({ phone: '', base: '500', perKm: '150', included: '1', radius: '10', offersDelivery: true, offersPickup: true, is24h: false, payoutOperator: 'wave', payoutPhone: '' });
   const [week, setWeek] = useState<Record<number, Day>>(defaultWeek());
   const [msg, setMsg] = useState<{ t: 'ok' | 'error'; m: string } | null>(null);
 
@@ -30,6 +30,7 @@ function Settings() {
     setF({
       phone: data.phone ?? '', base: String(data.deliveryFee ?? 0), perKm: String(data.deliveryPerKmFee ?? 0), included: String(data.deliveryIncludedKm ?? 0),
       radius: String(data.deliveryRadiusKm ?? 10), offersDelivery: !!data.offersDelivery, offersPickup: !!data.offersPickup, is24h: !!data.is24h,
+      payoutOperator: data.payoutOperator ?? 'wave', payoutPhone: data.payoutPhone ?? '',
     });
     if (data.openingHours?.length) {
       const w = defaultWeek();
@@ -50,6 +51,7 @@ function Settings() {
       await api(`/pharmacies/${user!.pharmacyId}`, { method: 'PATCH', body: {
         ...(f.phone && { phone: f.phone }), deliveryFee: Number(f.base), deliveryPerKmFee: Number(f.perKm), deliveryIncludedKm: Number(f.included), deliveryRadiusKm: Number(f.radius),
         offersDelivery: f.offersDelivery, offersPickup: f.offersPickup, is24h: f.is24h,
+        ...(f.payoutPhone.trim() && { payoutOperator: f.payoutOperator, payoutPhone: f.payoutPhone.trim() }),
         openingHours: DAYS.map(({ day }) => (week[day]!.open ? { day, open: week[day]!.from, close: week[day]!.to } : { day, closed: true })),
       } });
       setMsg({ t: 'ok', m: 'Paramètres enregistrés.' }); reload();
@@ -99,6 +101,16 @@ function Settings() {
               <label className="flex items-center gap-2"><input type="checkbox" className="accent-brand-600" checked={f.offersDelivery} onChange={(e) => setF({ ...f, offersDelivery: e.target.checked })} />Livraison</label>
               <label className="flex items-center gap-2"><input type="checkbox" className="accent-brand-600" checked={f.offersPickup} onChange={(e) => setF({ ...f, offersPickup: e.target.checked })} />Retrait</label>
             </div>
+          </Card>
+          <Card className="space-y-3">
+            <h2 className="font-semibold">Réception des paiements en ligne</h2>
+            <p className="text-sm text-ink/60">Compte Wave ou Orange Money qui reçoit le <b>prix des médicaments</b> des commandes payées en ligne, à la confirmation de la livraison. Aucune donnée bancaire.</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="block text-sm"><span className="mb-1 block font-medium text-ink/80">Opérateur</span>
+                <select value={f.payoutOperator} onChange={(e) => setF({ ...f, payoutOperator: e.target.value })} className="w-full rounded-lg border border-brand-200 bg-white px-3 py-2"><option value="wave">Wave</option><option value="orange_money">Orange Money</option></select></label>
+              <div className="sm:col-span-2"><Input label="Numéro du compte" inputMode="tel" value={f.payoutPhone} onChange={(e) => setF({ ...f, payoutPhone: e.target.value })} placeholder="+221 77 123 45 67" /></div>
+            </div>
+            {!f.payoutPhone.trim() && <p className="text-xs text-amber-700">Sans compte, les paiements en ligne restent « en attente de versement ».</p>}
           </Card>
           <Card className="space-y-3">
             <h2 className="font-semibold">Tarif de livraison</h2>

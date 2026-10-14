@@ -27,7 +27,8 @@ Légende : [x] fait ET testé · [~] partiel / non vérifié · [ ] à faire. De
 - [~] Frontend de ces trois ajouts : compile, **non testé dans un navigateur**
 - [x] Cartes Leaflet + OSM (recherche, panier avec repère déplaçable, suivi, livreur, admin, inscription pharmacie) : conformité à la politique des tuiles documentée (`CARTOGRAPHIE.md`), test jsdom 19/19 ; **rendu visuel non vérifié dans un vrai navigateur**
 - [x] Horaires par jour (éditeur semaine, statut « ouverte jusqu'à… / ouvre demain… ») ; partage du numéro du patient avec le livreur (+ demande par le livreur, refus possible) ; **141 tests verts**
-- [ ] **Décision métier : flux d'argent** (`PAIEMENTS.md`) + éventuel registre de reversement des espèces
+- [x] **Répartition automatique de l'argent** (médicaments → pharmacie, frais → livreur), registre des espèces, comptes de réception, pages Paiements / Mes gains / Finances ; **159 tests verts**. Mode DEMO uniquement (`PAIEMENTS.md` §5 pour le réel)
+- [ ] Décider qui supporte les frais du prestataire et une éventuelle commission (non modélisé)
 - [ ] Renseigner `NEXT_PUBLIC_CONTACT_EMAIL` (contact recommandé par la politique OSM)
 - [ ] Redéployer (Render/Vercel) puis `seed:reset` pour obtenir les tarifs et les demandes de démonstration
 

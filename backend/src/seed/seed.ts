@@ -17,6 +17,8 @@ import { Order } from '../models/Order';
 import { Supplier } from '../models/Supplier';
 import { DeliveryAgent } from '../models/DeliveryAgent';
 import { notify } from '../services/notification.service';
+import { Settlement } from '../models/Settlement';
+import { settlementService } from '../modules/settlements/settlement.service';
 import { stockService } from '../modules/stock/stock.service';
 import { alertService } from '../modules/stock/alert.service';
 import { restockService } from '../modules/stock/restock.service';
@@ -84,6 +86,10 @@ async function main() {
   // ---------- comptes ----------
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, env.BCRYPT_ROUNDS);
   const pharmacies = await Pharmacy.insertMany(PHARMACIES.map((p) => ({ ...p, city: 'Dakar', isValidated: true, isActive: true, offersDelivery: true, offersPickup: true, deliveryRadiusKm: 15 })));
+  // Comptes de réception des paiements en ligne (numéros fictifs de démonstration)
+  for (const [i, ph] of pharmacies.entries()) {
+    await Pharmacy.updateOne({ _id: ph._id }, { $set: { payoutOperator: i % 2 ? 'orange_money' : 'wave', payoutPhone: `+221 77 000 00 0${i + 1}` } });
+  }
   const mk = (role: string, email: string, firstName: string, lastName: string, extra: object = {}) =>
     User.create({ email, passwordHash, role, firstName, lastName, phone: '+221770000000', ...extra });
   const admin = await mk('ADMIN', 'admin@pharmaloc.sn', 'Aminata', 'Admin');
@@ -192,8 +198,8 @@ async function main() {
       items: items.map(([m, q]) => ({ medicineId: String(m!._id), quantity: q })),
     });
   const toReady = async (id: string) => { await orderService.accept(id, pharmAuth); await orderService.prepare(id, pharmAuth); await orderService.markReady(id, pharmAuth); };
-  await deliveryService.setAvailability(String(agent._id), { isAvailable: true, vehicle: 'Moto', latitude: 14.69, longitude: -17.44 });
-  await deliveryService.setAvailability(String(agent2._id), { isAvailable: false, vehicle: 'Vélo' });
+  await deliveryService.setAvailability(String(agent._id), { isAvailable: true, vehicle: 'Moto', latitude: 14.69, longitude: -17.44, payoutOperator: 'orange_money', payoutPhone: '+221 77 111 22 33' });
+  await deliveryService.setAvailability(String(agent2._id), { isAvailable: false, vehicle: 'Vélo', payoutOperator: 'wave', payoutPhone: '+221 77 111 22 44' });
 
   const o1 = await place('delivery', [[ZINC, 2], [SRO, 3]], 'mobile_money');            // livrée
   await toReady(String(o1!._id));
@@ -206,6 +212,21 @@ async function main() {
   const o2 = await place('pickup', [[P500, 2]], 'cash_on_pickup');                       // retrait effectué
   await toReady(String(o2!._id));
   await orderService.handover(String(o2!._id), orderCode(String(o2!._id)), pharmAuth);
+
+  // Livraisons payées en espèces : l'une avec espèces encore à remettre, l'autre déjà remise à la pharmacie
+  const deliverCash = async () => {
+    const o = await place('delivery', [[SRO, 1]], 'cash_on_delivery');
+    await toReady(String(o!._id));
+    const d = await Delivery.findOne({ orderId: o!._id });
+    await deliveryService.accept(String(d!._id), agentAuth);
+    await deliveryService.pickup(String(d!._id), agentAuth);
+    await deliveryService.start(String(d!._id), agentAuth);
+    await deliveryService.complete(String(d!._id), agentAuth, orderCode(String(o!._id)));
+    return o!;
+  };
+  const o8 = await deliverCash();
+  await settlementService.confirmCash(String((await Settlement.findOne({ orderId: o8._id }))!._id), pharmAuth); // espèces remises et confirmées
+  await deliverCash();                                                                                          // espèces encore à remettre
 
   const o3 = await place('delivery', [[CETI, 1]], 'cash_on_delivery');                   // en cours de livraison
   await toReady(String(o3!._id));

@@ -6,7 +6,7 @@ import { RequireRole } from '@/lib/auth';
 import { ALERT_LABEL, dt, fcfa, STATUS_LABEL } from '@/lib/format';
 import { LazyMap, MapView } from '@/components/MapView';
 
-const TABS = ['Aperçu', 'Demandes', 'Pharmacies', 'Utilisateurs', 'Livreurs', 'Audit'] as const;
+const TABS = ['Aperçu', 'Demandes', 'Finances', 'Pharmacies', 'Utilisateurs', 'Livreurs', 'Audit'] as const;
 const ROLE_LABEL: Record<string, string> = { PATIENT: 'Patients', PHARMACIST: 'Pharmaciens', DELIVERY_AGENT: 'Livreurs', ADMIN: 'Admins' };
 
 function Admin() {
@@ -14,6 +14,7 @@ function Admin() {
   const [msg, setMsg] = useState<{ t: 'ok' | 'error'; m: string } | null>(null);
   const dash = useFetch<Obj>('/dashboard/admin', 30000);
   const requests = useFetch<Obj[]>('/users/requests', 20000);
+  const fin = useFetch<Obj>(tab === 'Finances' ? '/settlements/overview' : null, 20000);
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const pharmacies = useFetch<Obj[]>(tab === 'Pharmacies' ? '/pharmacies?all=true&limit=100' : null);
   const users = useFetch<Obj[]>(tab === 'Utilisateurs' ? '/users?limit=100' : null);
@@ -72,6 +73,39 @@ function Admin() {
               </div>
             </Card>
           ))}
+        </div>
+      )}
+
+      {tab === 'Finances' && fin.data && (
+        <div className="space-y-4">
+          <Notice tone="info">Mode DEMO : aucun argent réel. Répartition à la livraison : médicaments → pharmacie, frais de livraison → livreur. En espèces, le livreur garde ses frais et remet le reste.</Notice>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <Stat label="Volume total livré" value={fcfa(fin.data.volume.total)} tone="green" />
+            <Stat label="Payé en ligne" value={fcfa(fin.data.volume.online)} />
+            <Stat label="Espèces à la livraison" value={fcfa(fin.data.volume.cashDelivery)} />
+            <Stat label="Espèces au retrait" value={fcfa(fin.data.volume.cashPickup)} />
+          </div>
+          <Card>
+            <h2 className="mb-2 font-semibold">Espèces détenues par les livreurs (plafond {fcfa(fin.data.cashLimit)})</h2>
+            {fin.data.cashHeldByCouriers.length === 0 ? <p className="text-sm text-ink/60">Aucune espèce en attente de remise ✅</p> : (
+              <table className="w-full text-left text-sm"><thead className="text-xs uppercase text-ink/50"><tr><th className="py-2">Livreur</th><th>Courses</th><th>À remettre</th><th>Depuis</th></tr></thead>
+                <tbody>{fin.data.cashHeldByCouriers.map((c: Obj) => <tr key={c.courierId} className="border-t border-brand-50"><td className="py-2 font-medium">{c.name}</td><td>{c.count}</td><td className={c.amount > fin.data!.cashLimit ? 'font-bold text-red-700' : 'font-semibold'}>{fcfa(c.amount)}</td><td>{c.oldestDays} j</td></tr>)}</tbody></table>
+            )}
+          </Card>
+          <Card>
+            <h2 className="mb-2 font-semibold">Versements à corriger</h2>
+            {fin.data.payoutsToFix.length === 0 ? <p className="text-sm text-ink/60">Aucun versement en attente ou en échec ✅</p> : (
+              <div className="space-y-2">{fin.data.payoutsToFix.map((p: Obj) => (
+                <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-brand-100 p-3 text-sm">
+                  <div><b>{p.recipientType === 'PHARMACY' ? 'Pharmacie' : 'Livreur'}</b> · {fcfa(p.amount)} · <Badge tone={p.status === 'failed' ? 'red' : 'amber'}>{p.status === 'failed' ? 'Échec' : 'En attente'}</Badge><p className="text-xs text-ink/60">{p.reason ?? '—'} · {p.attempts} tentative(s)</p></div>
+                  <Button variant="outline" onClick={() => run(() => api(`/settlements/${p.settlementId}/retry`, { method: 'POST' }), 'Relance effectuée.', fin.reload)}>Relancer</Button>
+                </div>
+              ))}</div>
+            )}
+          </Card>
+          {fin.data.deliveredWithoutSettlement > 0 && (
+            <Notice>{fin.data.deliveredWithoutSettlement} commande(s) livrée(s) sans répartition. <button className="font-semibold underline" onClick={() => run(() => api('/settlements/reconcile', { method: 'POST' }), 'Répartitions rattrapées.', fin.reload)}>Rattraper maintenant</button></Notice>
+          )}
         </div>
       )}
 

@@ -28,3 +28,6 @@
 
 ## Session 3 (suite 2) - Horaires par jour, numéro du patient, question paiements
 **Demande** : le pharmacien règle jours/heures d'ouverture ; le patient envoie son numéro au livreur, sinon le livreur le demande ; question « qui reçoit l'argent ». **Fait** : D-23 à D-26, `PAIEMENTS.md`. **Bug trouvé par les tests** : regex téléphone trop stricte (corrigé). **Vérifié** : 141 tests, builds. **Non vérifié** : rendu navigateur des nouvelles pages. **À décider** : modèle de répartition de l'argent.
+
+## Session 3 (suite 3) - Répartition automatique de l'argent
+**Demande** : le livreur garde les frais ; en paiement Wave/Orange Money, répartition automatique à la validation de la livraison. **Fait** : D-27 à D-30, 18 tests de répartition, pages Paiements/Mes gains/Finances. **Limite assumée** : paiements et versements en DEMO, aucun argent réel (le branchement d'un vrai prestataire demande compte pro, API, KYC, avis juridique). **Vérifié** : 159 tests, seed (4 cas de répartition), builds. **Non vérifié** : rendu navigateur des nouvelles pages.

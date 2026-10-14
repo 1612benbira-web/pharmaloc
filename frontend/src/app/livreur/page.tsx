@@ -1,5 +1,6 @@
 'use client';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Badge, Button, Card, Input, Notice, Page, useFetch } from '@/components/ui';
 import { api, errMsg, type Obj } from '@/lib/api';
 import { RequireRole } from '@/lib/auth';
@@ -22,7 +23,12 @@ function Agent() {
   const mine = useFetch<Obj[]>('/deliveries/mine', 6000);
   const [codes, setCodes] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<{ t: 'ok' | 'error'; m: string } | null>(null);
-  const reloadAll = () => { me.reload(); avail.reload(); mine.reload(); };
+  const [cash, setCash] = useState<Obj | null>(null);
+  const loadCash = useCallback(async () => {
+    try { const r = await api<{ meta: Obj }>('/settlements?limit=1'); setCash(r.meta.summary ?? null); } catch { /* bandeau facultatif */ }
+  }, []);
+  useEffect(() => { loadCash(); const t = setInterval(loadCash, 20000); return () => clearInterval(t); }, [loadCash]);
+  const reloadAll = () => { me.reload(); avail.reload(); mine.reload(); loadCash(); };
   const call = async (fn: () => Promise<unknown>, ok?: string) => { try { await fn(); setMsg(ok ? { t: 'ok', m: ok } : null); reloadAll(); } catch (e) { setMsg({ t: 'error', m: errMsg(e) }); } };
   const toggle = () => call(() => api('/agents/me', { method: 'PATCH', body: { isAvailable: !me.data?.isAvailable } }));
   const share = (id: string) => navigator.geolocation?.getCurrentPosition(
@@ -37,6 +43,9 @@ function Agent() {
       <div className="mb-3 flex items-center gap-2 text-sm">Statut : {me.data?.isAvailable ? <Badge tone="green">Disponible</Badge> : <Badge tone="gray">Indisponible</Badge>}</div>
       {msg && <div className="mb-3"><Notice tone={msg.t}>{msg.m}</Notice></div>}
 
+      {cash && cash.cashToRemit > 0 && (
+        <div className="mb-4"><Notice tone={cash.cashToRemit > cash.cashLimit ? 'error' : 'info'}>💰 Espèces à remettre aux pharmacies : <b>{fcfa(cash.cashToRemit)}</b> (plafond {fcfa(cash.cashLimit)}){cash.cashToRemit > cash.cashLimit && ' : vous ne pouvez plus accepter de livraison avant de les remettre'}. <Link className="underline" href="/livreur/gains">Voir mes gains</Link></Notice></div>
+      )}
       <h2 className="mb-2 font-semibold">En cours ({active?.length ?? 0})</h2>
       <div className="space-y-3">
         {active?.map((d) => (

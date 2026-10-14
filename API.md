@@ -65,7 +65,7 @@ Rôles : **P** = PATIENT · **PH** = PHARMACIST · **L** = DELIVERY_AGENT · **A
 | POST, DELETE | /orders/:id/share-phone `{phone?}` | P (propriétaire) | **Le patient envoie son numéro au livreur** (numéro du profil si `phone` absent) / arrête le partage |
 | POST | /orders/:id/decline-phone-request | P (propriétaire) | Refuse la demande de numéro du livreur (le livreur est informé) |
 | POST | /deliveries/:id/request-phone | L (assigné) | **Le livreur demande le numéro du patient** (3 demandes maximum par livraison, le patient décide) |
-| GET, PATCH | /agents/me | L | Disponibilité, véhicule, position |
+| GET, PATCH | /agents/me | L | Disponibilité, véhicule, position, **compte de réception** (`payoutOperator` wave/orange_money, `payoutPhone`) |
 | GET | /agents | A | Supervision des livreurs |
 | GET | /deliveries/available, /deliveries/mine | L | Demandes / mes livraisons |
 | POST | /delivery-assignments `{deliveryId}` | L | Accepter (prise atomique : un seul livreur) |
@@ -75,6 +75,12 @@ Rôles : **P** = PATIENT · **PH** = PHARMACIST · **L** = DELIVERY_AGENT · **A
 | GET, POST | /payments/:id, /payments/:id/verify | propriétaire, A | Statut (mode DEMO) |
 | GET, POST, DELETE | /addresses | P | Carnet d'adresses |
 | GET, POST | /notifications, /notifications/unread-count, /:id/read, /read-all | connecté | Notifications |
+| GET | /settlements?status&kind | PH (sa pharmacie), L (les siennes), A | **Répartitions** des commandes livrées + `meta.summary` (reçu, à recevoir, gains, espèces à remettre) |
+| POST | /settlements/:id/confirm-cash | PH (sa pharmacie), A | Confirme la **réception des espèces** remises par le livreur |
+| POST | /settlements/confirm-cash `{ids}` | PH, A | Idem pour plusieurs commandes (50 max) |
+| POST | /settlements/:id/retry | A | Relance les versements en attente ou échoués (5 tentatives max) |
+| GET | /settlements/overview | A | Espèces détenues par livreur, versements à corriger, commandes sans répartition |
+| POST | /settlements/reconcile | A | Répartit les commandes livrées qui n'ont pas de répartition |
 | GET | /dashboard/pharmacy | PH, A | Statistiques + graphiques |
 | GET | /dashboard/admin | A | Activité de la plateforme |
 | GET | /audit-logs?action&entity | A | Journal d'audit |
@@ -92,3 +98,6 @@ Chaque pharmacie définit **les jours ouvrables et, pour chacun, l'heure d'ouver
 
 ## Numéros de téléphone
 Format accepté : 8 à 15 chiffres, avec `+`, espaces, points, tirets ou parenthèses (`+221 77 123 45 67`, `77.123.45.67`).
+
+## Répartition des paiements
+Voir `PAIEMENTS.md`. À la confirmation de la livraison : **médicaments → pharmacie, frais de livraison → livreur** (en ligne : versements automatiques ; en espèces : le livreur garde ses frais et remet le reste, la pharmacie confirme). Compte de réception : `PATCH /pharmacies/:id` (pharmacien) et `PATCH /agents/me` (livreur) avec `payoutOperator` et `payoutPhone` ; jamais exposé publiquement.

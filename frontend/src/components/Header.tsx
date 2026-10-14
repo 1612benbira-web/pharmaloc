@@ -6,8 +6,8 @@ import { useFetch } from './ui';
 
 const NAV: Record<string, [string, string][]> = {
   PATIENT: [['Rechercher', '/recherche'], ['Mes commandes', '/commandes']],
-  PHARMACIST: [['Tableau de bord', '/pharmacien'], ['Stock', '/pharmacien/stock'], ['Nouvelle livraison', '/pharmacien/livraison'], ['Commandes', '/pharmacien/commandes'], ['Réappro', '/pharmacien/reappro'], ['Mouvements', '/pharmacien/mouvements'], ['Paramètres', '/pharmacien/parametres']],
-  DELIVERY_AGENT: [['Mes livraisons', '/livreur']],
+  PHARMACIST: [['Tableau de bord', '/pharmacien'], ['Stock', '/pharmacien/stock'], ['Nouvelle livraison', '/pharmacien/livraison'], ['Commandes', '/pharmacien/commandes'], ['Réappro', '/pharmacien/reappro'], ['Mouvements', '/pharmacien/mouvements'], ['Paiements', '/pharmacien/paiements'], ['Paramètres', '/pharmacien/parametres']],
+  DELIVERY_AGENT: [['Mes livraisons', '/livreur'], ['Mes gains', '/livreur/gains']],
   ADMIN: [['Administration', '/admin']],
 };
 
